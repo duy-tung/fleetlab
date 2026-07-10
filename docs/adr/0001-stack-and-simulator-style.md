@@ -1,6 +1,6 @@
 # ADR-0001 — Python stack and simulator style
 
-- **Status:** Proposed (pending user review — every ADR is a mandatory human review point)
+- **Status:** Accepted (user review passed at the Wave-1 exit review, 2026-07-10)
 - **Date:** 2026-07-10
 - **Deciders:** fleetlab implementer + user (review)
 
