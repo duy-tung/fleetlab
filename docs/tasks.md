@@ -223,6 +223,35 @@ Execution order: FL-T002 → FL-T003 → FL-T004 (G8 review) → {FL-T005, FL-T0
 - **Evidence:** placement report (one of the five required reports).
 - **Integration impact:** portfolio depth (capacity reasoning breadth).
 - **Stop condition:** report published, or reduced-scope note (two hardware profiles) recorded as a deviation.
+- **Status (2026-07-11): DONE — reduced scope invoked per the pre-decided
+  kill rule (`docs/risks.md` rule 2), recorded as a deviation, not cut
+  silently.** `fleetlab/placement/{model,build_placement_report}.py`
+  implemented (six mechanisms: memory fit, throughput/cost ranking,
+  cold-start weighting, failover headroom, fragmentation, workload
+  affinity — all pure/closed-form, no RNG); 36 tests green
+  (`tests/placement/`), full suite 251/251. The measured evidence corpus
+  covers exactly one hardware bucket (the CPU-only mock/llama.cpp loopback
+  family); the mechanism ran over that bucket (measured,
+  `mock-loopback-cpu-dev__mock-8b__gateway-mock-flags-v1-conncap2`, G8-
+  within-error fitted capacity 26.157 ± 1.233 rps) plus one
+  `serving-contracts` example GPU profile (`hardware-a10g-g5-xlarge`,
+  `basis: source-reported` for VRAM/price, `basis: assumed` for its
+  capacity figure, borrowed from a vendor illustrative fixture) as a
+  **mechanism demonstration only** — enforced in code via
+  `PlacementVerdict.is_recommendation` (computed from a candidate's own
+  `basis`, not caller-asserted; a dedicated test proves it cannot be
+  constructed to claim otherwise). Both sanity invariants from this task's
+  own spec hold structurally: `memory_fit()` raises
+  `MemoryCapacityUnknownError` rather than assuming a fit whenever memory
+  capacity is unknown (the measured CPU bucket's own host RAM was never
+  recorded anywhere in this program's evidence — an honest PENDING, not a
+  fabricated pass); `PlacementVerdict` cannot claim `is_recommendation=True`
+  for non-measured hardware. Headline finding: workload affinity
+  (planning-prompt hypothesis 5) — the same hardware+model pairing's
+  concurrency headroom collapses ~24x (174.5 → 7.3 concurrent requests)
+  between a short-chat and a long-context workload, with throughput/cost
+  ranking held completely fixed. Full report: `reports/placement.md`; raw
+  output: `reports/scenarios/placement.json`.
 
 ## FL-T008 — Cost model + sensitivity
 - **Goal/Repo:** cost/capacity economics in fleetlab.

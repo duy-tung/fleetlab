@@ -1,0 +1,158 @@
+{
+  "generated_by": "python3 -m fleetlab.placement.build_placement_report",
+  "as_of": "2026-07-11",
+  "basis": "REDUCED SCOPE (docs/risks.md kill rule 2): the measured corpus covers exactly one hardware bucket. Candidate (a) below is that measured bucket; candidate (b) is a serving-contracts example GPU profile, a MECHANISM DEMONSTRATION only -- never a placement recommendation (see verdicts.*.is_recommendation, computed from each candidate's own basis field, not asserted here).",
+  "candidates": {
+    "measured_cpu": {
+      "hardware_id": "mock-loopback-cpu-dev__mock-8b__gateway-mock-flags-v1-conncap2",
+      "label": "mock backend (gateway-mediated loopback, local-dev-container, linux/amd64, CPU-only) -- NOT real hardware; profiled for loop-mechanics purposes only, per FL-T004 scope decision.",
+      "basis": "measured",
+      "memory_gb": null,
+      "capacity_rps": 26.15722104139299,
+      "capacity_rps_stderr": 1.2330632250242952,
+      "capacity_basis": "measured",
+      "usd_per_hour": null,
+      "source_profile": "profiles/fitted/mock-loopback-cpu-dev__mock-8b__gateway-mock-flags-v1-conncap2.json",
+      "source_profile_sha256": "8a1609618c256a4b24f8536438b6c98978c12886aa4c24fdbdaae3e5179fc8fa"
+    },
+    "gpu_demo": {
+      "hardware_id": "hardware-a10g-g5-xlarge",
+      "label": "NVIDIA A10G (g5.xlarge)",
+      "basis": "source-reported",
+      "memory_gb": 24,
+      "memory_basis": "source-reported",
+      "capacity_rps": 7.41,
+      "capacity_basis": "assumed",
+      "capacity_source": "vendor/serving-contracts-v0.2.0/examples/benchmark/result.json goodput.requests_per_second_meeting_slo (vendor illustrative fixture, 'all values illustrative, no measurement claims')",
+      "usd_per_hour": 1.006,
+      "price_basis": "source-reported",
+      "source_hardware_profile": "profiles/examples/hardware-a10g-g5-xlarge.json",
+      "source_hardware_profile_sha256": "7fef6fb1288a971cf814c29149ed4655a26ad6b1a3f5b93d4e398314452d8c74",
+      "source_cost_profile": "profiles/examples/cost-g5-xlarge-ondemand.json",
+      "source_cost_profile_sha256": "ea46229cd7c24d22af1f408c82fc735c4073871fe5bb7951e8f5310f3db33c0f"
+    }
+  },
+  "verdicts": {
+    "mock-loopback-cpu-dev__mock-8b__gateway-mock-flags-v1-conncap2": {
+      "hardware_id": "mock-loopback-cpu-dev__mock-8b__gateway-mock-flags-v1-conncap2",
+      "hardware_basis": "measured",
+      "is_recommendation": true,
+      "demonstration_only": false
+    },
+    "hardware-a10g-g5-xlarge": {
+      "hardware_id": "hardware-a10g-g5-xlarge",
+      "hardware_basis": "source-reported",
+      "is_recommendation": false,
+      "demonstration_only": true
+    }
+  },
+  "memory_fit": {
+    "measured_cpu_x_qwen": {
+      "model_id": "model-qwen2.5-1.5b-instruct-gguf-q4km",
+      "hardware_id": "mock-loopback-cpu-dev__mock-8b__gateway-mock-flags-v1-conncap2",
+      "fits": [],
+      "rejected": [
+        {
+          "hardware_id": "mock-loopback-cpu-dev__mock-8b__gateway-mock-flags-v1-conncap2",
+          "verdict": "insufficient-data",
+          "detail": "hardware 'mock-loopback-cpu-dev__mock-8b__gateway-mock-flags-v1-conncap2' has no recorded memory capacity (basis=measured) -- cannot evaluate whether 'model-qwen2.5-1.5b-instruct-gguf-q4km' fits; refusing to assume a fit."
+        }
+      ]
+    },
+    "gpu_demo_x_llama31_8b": {
+      "model_id": "model-llama31-8b",
+      "hardware_id": "hardware-a10g-g5-xlarge",
+      "fits": [
+        {
+          "hardware_id": "hardware-a10g-g5-xlarge",
+          "required_gb": 16.1,
+          "available_gb": 24,
+          "headroom_gb": 7.899999999999999,
+          "utilization_fraction": 0.6708333333333334
+        }
+      ],
+      "rejected": []
+    }
+  },
+  "throughput_cost_ranking": {
+    "ranked": [
+      {
+        "hardware_id": "hardware-a10g-g5-xlarge",
+        "capacity_rps": 7.41,
+        "capacity_basis": "assumed",
+        "usd_per_hour": 1.006,
+        "price_basis": "source-reported",
+        "goodput_per_dollar_hour": 7.365805168986084
+      }
+    ],
+    "excluded_insufficient_data": [
+      "mock-loopback-cpu-dev__mock-8b__gateway-mock-flags-v1-conncap2"
+    ],
+    "note": "the measured CPU bucket is excluded: it has a real measured capacity_rps but no usd_per_hour (a local-dev-container has no cloud billing) -- not fabricated as $0. With only one candidate carrying both figures, this mechanism has nothing real to rank against; this is itself the reduced-scope finding, not a bug."
+  },
+  "cold_start_weighting_demo": {
+    "hardware_family": "measured CPU/llama.cpp host (inference-lab evidence/i3, same family as MEASURED_COLD_START)",
+    "reaction_window_seconds": 15.0,
+    "reaction_window_source": "tests/golden/fixtures/real/workloads/bursty.json burst-phase duration (real, IB-T003 canonical workload)",
+    "warm_regime": {
+      "cold_start_seconds": 1.9372963333333335,
+      "basis": "measured",
+      "penalty_factor": 1.0
+    },
+    "cold_regime": {
+      "cold_start_seconds": 91.34080499999999,
+      "basis": "measured",
+      "penalty_factor": 0.16422014235587262
+    },
+    "source": "inference-lab/evidence/i3/logs/llama-server-{calib,direct,gw,failover-1,failover-2}.log + attempt1-cancel/llama-server-cancel.log (warm regime, OS page cache holds the weights); inference-lab/evidence/i3/logs/llama-server-cancel.log (final) + llama-server-sharedprefix.log (cold regime, page cache evicted); llama.cpp commit 8f114a9, qwen2.5-1.5b-instruct-q4_k_m.gguf, same 4-vCPU CPU-only host throughout",
+    "finding": "warm reload (page cache hit) fits comfortably inside the 15s burst-reaction window (penalty_factor=1.0); cold reload (page-cache-evicted) overruns it by ~6x, collapsing the mechanism's weight to ~0.16x -- the same warm/cold gap FL-T005's cold-start-headroom report found, now expressed as a placement-ranking penalty rather than a backlog figure."
+  },
+  "failover_headroom": {
+    "hardware_id": "mock-loopback-cpu-dev__mock-8b__gateway-mock-flags-v1-conncap2",
+    "per_replica_capacity_rps": 26.15722104139299,
+    "replica_count": 2,
+    "full_fleet_capacity_rps": 52.31444208278598,
+    "n_minus_1_capacity_rps": 26.15722104139299,
+    "peak_offered_rps": 20,
+    "peak_offered_rps_source": "tests/golden/fixtures/real/workloads/bursty.json (real, IB-T003 canonical bursty workload)",
+    "deficit_rps": 0.0,
+    "headroom_deficit": false
+  },
+  "fragmentation": {
+    "measured_cpu_x_qwen": {
+      "insufficient_data": "hardware 'mock-loopback-cpu-dev__mock-8b__gateway-mock-flags-v1-conncap2' has no recorded memory capacity (basis=measured) -- cannot evaluate whether 'model-qwen2.5-1.5b-instruct-gguf-q4km' fits; refusing to assume a fit."
+    },
+    "gpu_demo_x_llama31_8b": {
+      "instances_per_node": 1,
+      "used_gb": 16.1,
+      "wasted_gb": 7.899999999999999,
+      "waste_fraction": 0.3291666666666666
+    }
+  },
+  "workload_affinity": {
+    "chat_short": {
+      "workload_name": "chat-short",
+      "path": "tests/golden/fixtures/real/workloads/chat-short.json",
+      "sha256": "8dc71fa3857e3b9acf06ebbe118684d99f3ed40ebe4ce790cc951bf559c71b0d",
+      "mean_input_tokens": 200.0,
+      "mean_output_tokens": 145.47438165360992,
+      "mean_context_tokens": 345.47438165360995,
+      "required_kv_gb": 0.04528201815210196,
+      "spare_after_weights_gb": 7.899999999999999,
+      "fits_typical_request": true,
+      "concurrent_requests_headroom": 174.46218879785695
+    },
+    "rag_long_in": {
+      "workload_name": "rag-long-in",
+      "path": "vendor/serving-contracts-v0.2.0/examples/workloads/rag-long-in.json",
+      "sha256": "c21bbba5bc45135192aac1cc2bb29653c05b7e2fa3764864c042b9d9c77858a7",
+      "mean_input_tokens": 8000.0,
+      "mean_output_tokens": 250.0,
+      "mean_context_tokens": 8250.0,
+      "required_kv_gb": 1.081344,
+      "spare_after_weights_gb": 7.899999999999999,
+      "fits_typical_request": true,
+      "concurrent_requests_headroom": 7.305723248106059
+    }
+  }
+}

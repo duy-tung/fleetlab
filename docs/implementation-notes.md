@@ -339,6 +339,55 @@ Running log of notable events: surprises, assumption changes, reduced scope, pre
 - Both tasks: no new dependency added (pure `numpy` + existing `fleetlab.
   ingest`/`fleetlab.dynamics`/`fleetlab.fitting` reuse).
 
+### 2026-07-11 — FL-T007 heterogeneous placement (reduced scope)
+
+- **Kill rule invoked, as pre-decided:** `docs/risks.md` rule 2 ("FL-T007
+  heterogeneous-placement depth is reducible to two hardware profiles").
+  The measured corpus still covers exactly one hardware bucket (unchanged
+  since FL-T004/FL-L2 — the GPU corpus never materialized). Implemented the
+  full placement mechanism (`fleetlab/placement/model.py`: memory fit,
+  throughput/cost ranking, cold-start weighting, failover headroom,
+  fragmentation, workload affinity) as tested code, then ran it over (a)
+  the sole measured bucket and (b) `serving-contracts`'s
+  `hardware-a10g-g5-xlarge` example GPU profile, labeled
+  `basis: source-reported`/`assumed` throughout and structurally barred
+  from ever being emitted as a recommendation
+  (`PlacementVerdict.is_recommendation`).
+- 36 tests green (`tests/placement/`), full suite 251/251.
+- **The measured bucket's own host memory (VRAM/RAM) was never recorded
+  anywhere in this program's evidence** — surfaces the same schema/data gap
+  `docs/implementation-notes.md`'s FL-T002 deviation already recorded ("no
+  hardware-profile example for the CPU-only host"), now hit directly by
+  the memory-fit mechanism: `memory_fit()` raises
+  `MemoryCapacityUnknownError` rather than returning a fabricated
+  `fits=True`. Paired the measured bucket with the one real model this
+  program actually served on a CPU host (Qwen2.5-1.5B-Instruct,
+  `weights_size_gb=1.117`, measured) to make this finding as informative as
+  possible before hitting the RAM gap.
+- Cold-start weighting is demonstrated on FL-T005's own
+  `MEASURED_COLD_START` (llama.cpp/Qwen, same CPU-host family) against the
+  real `bursty` workload's 15 s burst-phase reaction window (warm regime
+  1.94 s → penalty factor 1.0; cold regime 91.34 s → penalty factor 0.164)
+  rather than on either ranked hardware candidate directly — neither the
+  mock backend (`warm_up.policy: "none"` in every manifest) nor the GPU
+  example has any cold-start timing in evidence; borrowing across engines
+  is stated explicitly, not silently.
+- Failover headroom reuses `fleetlab.dynamics.headroom` (FL-T005) rather
+  than reimplementing it; reproduces that task's published "no headroom
+  deficit" finding for the measured bucket's 2-replica fleet against the
+  real `bursty` workload's 20 rps peak, now composed through the placement
+  layer's own code path as a cross-check.
+- Headline finding (workload affinity, hypothesis 5): same GPU-demo
+  hardware+model pairing (Llama-3.1-8B on `hardware-a10g-g5-xlarge`), same
+  throughput/cost ranking by construction — concurrency headroom collapses
+  ~24x (174.5 → 7.3 concurrent requests) between `chat-short` (real,
+  IB-T003) and `rag-long-in` (vendored non-normative `serving-contracts`
+  example fixture, owned by inferbench) purely from context-length
+  differences. Full report: `reports/placement.md`; raw output:
+  `reports/scenarios/placement.json`.
+- No new dependency added (pure Python + existing `fleetlab.ingest`/
+  `fleetlab.dynamics`/`fleetlab.models` reuse).
+
 ## Assumptions register
 
 | # | Date | Assumption | Reversible? | Revisit when |
@@ -356,6 +405,8 @@ Running log of notable events: surprises, assumption changes, reduced scope, pre
 | A11 | 2026-07-11 | FL-T006's `bursty-illustrative-severe` scenario amplifies only the real `bursty.json` fixture's burst-rate phase by a fixed, disclosed 1.6x multiplier (20→32 rps) — chosen as the smallest round multiplier that clears the fitted capacity (26.16 rps) by a comfortable margin, not tuned to produce a particular result | yes | a real multi-replica overload dataset from inferops IO-T009 |
 | A12 | 2026-07-11 | FL-T008's cost-model demonstration prices the FL-T004 fitted (CPU-only mock backend) capacity/latency profile against `cost-g5-xlarge-ondemand.json`'s real-GPU rates — a stated hardware/config mismatch, used only to demonstrate the cost-model mechanism | yes | a real GPU cost profile paired with a real GPU-measured capacity/latency profile (blocked on IB-T011 GPU corpus, budget-gated per the program plan) |
 | A13 | 2026-07-11 | FL-T008 treats "goodput at SLO" as the fitted (p50-only) latency model inverted against a p95-defined SLO objective's threshold value — a stated approximation, not a rigorous p95 prediction (fleetlab has not fitted a p95 latency model) | yes | a p95 (or full-distribution) latency model landing in a future fitting pass |
+| A14 | 2026-07-11 | FL-T007's placement demo pairs the measured CPU hardware bucket with Qwen2.5-1.5B (the real model this program served on a CPU host) rather than the mock engine's own "mock-8b" (which has no real weight size) — a closer real pairing for the memory-fit/fragmentation mechanisms, even though Qwen was never served by the specific mock-loopback engine the fitted capacity came from | yes | a real rate-sweep corpus that measures both capacity and memory on the same real engine |
+| A15 | 2026-07-11 | FL-T007's cold-start-weighting demo borrows FL-T005's `MEASURED_COLD_START` (llama.cpp/Qwen) as a standalone exhibit rather than attributing it to either ranked placement candidate (mock backend or the GPU example), since neither has any cold-start timing in evidence | yes | a real cold-start measurement for the mock backend or a real GPU |
 
 ## Deviations
 
@@ -441,3 +492,20 @@ Running log of notable events: surprises, assumption changes, reduced scope, pre
   future reader searching for the planning prompt's original filenames
   will find this note. Reversible: yes, a rename is a one-line change if a
   future review prefers the original names.
+- **2026-07-11 — FL-T007 heterogeneous placement, reduced scope invoked
+  (pre-decided, not an ad-hoc cut).** Evidence: the measured corpus still
+  covers exactly one hardware bucket (`docs/risks.md` FL-L2, unchanged
+  since FL-T004 — the GPU corpus never materialized; program GPU budget
+  ~$150–250 total). Decision: per `docs/risks.md`'s pre-approved kill rule
+  2 ("FL-T007 heterogeneous-placement depth is reducible to two hardware
+  profiles"), implemented the full placement mechanism as tested code
+  (`fleetlab/placement/`) and ran it over the one measured bucket plus one
+  `serving-contracts` example GPU profile, the latter structurally
+  confined to "mechanism demonstration" (`PlacementVerdict.
+  is_recommendation`, computed from the candidate's own `basis`, never
+  caller-asserted) rather than a real recommendation. Consequences: no
+  public contract, ownership, or milestone scope changed — this is exactly
+  the pre-approved fallback the kill rule anticipated. Follow-up: closes
+  when a second real measured hardware bucket (a real GPU or a second real
+  CPU/llama.cpp rate sweep) lands in the corpus. Full account:
+  `reports/placement.md`.
