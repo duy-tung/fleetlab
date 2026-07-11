@@ -225,6 +225,53 @@ Running log of notable events: surprises, assumption changes, reduced scope, pre
   exponential sampling) + Python's `heapq`, consistent with ADR-0001's
   "small owned discrete-event core, not a framework" decision.
 
+### 2026-07-11 — FL-T004 follow-up: corrected corpus (ib-t008 sweep), re-fit, G8 improves
+
+- **Corpus correction received:** the six-point rate sweep (knee at declared
+  21.122 rps, confidence 0.8) lives in `inferbench/docs/evidence/ib-t008/`
+  — missing from the original brief's corpus list (upstream attribution
+  error, orchestrator-acknowledged). 6 offered rates at 10%–120% of the
+  27.79 rps probe estimate, 3 reps x 150 requests each, kit-valid raw
+  events + manifests (no aggregated benchmark-result files), mock backend
+  behind gateway `flags-v1` (dev@74f2372) with a **disclosed client-side
+  concurrency cap of 2** (sweep.json) — the cap is carried into the fitted
+  profile's engine-config identity (`gateway-mock-flags-v1-conncap2`) and
+  its `concurrency_cap_disclosure` block: it models a specific
+  capacity-limited target, not general mock behavior.
+- **New corpus path:** `load_corpus_point_from_events` builds points from
+  raw events via the FL-T002 loaders. Offered rate is the **empirical
+  scheduled-send rate** — the sweep's seeded schedule ran a uniform 7.46%
+  faster than every point's declared rate_rps (same seed each point, scaled
+  → same draws; verified identical ratio at all six points); fitting
+  against declared rates would bake that bias into every parameter. Basis
+  recorded per point (`offered_rate_basis`).
+- **`fit_capacity` upgraded to exact weighted least squares** (still one
+  parameter, still pure algebra, still no scipy — ADR-0002 addendum). For a
+  single clamped training point it reduces to the old estimator exactly;
+  the ib-t010 E2/E2b profiles regenerated **byte-identical** (verified via
+  git diff), so nothing previously published changed.
+- **G8 result on the sweep config — capacity WITHIN STATED ERROR, both
+  directions:** train {p0,p1,p3,p4} → holdout p2 interior **+0.7%** / p5
+  overload **−6.7%** (1.05x combined 1-sigma); reverse train {p1,p2,p3,p5}
+  → holdout p0 **−0.4%** / p4 **+7.2%** (1.05x combined 1-sigma).
+  Contrast: the two-point ib-t010 corpus still misses at 12.6–20.4%
+  (4–9x noise floor) — unchanged, both outcomes published side by side.
+- **Latency profile: FITTED for the sweep config** (the FL-T004 PENDING
+  closes for it): `l0 = 38.7 ± 8.9 ms`. Interior interpolation +10.0%
+  (within the stated l0 parameter error ~23%); extrapolation to the lowest
+  rate −34.4% — a documented functional-form miss (implied l0 falls 55→18
+  ms across training points: the target's latency is additive
+  base-service + queueing delay, the model is multiplicative). The
+  two-parameter additive form is deferred to a reviewed follow-up
+  (ADR-0002 addendum item 3). Latency remains PENDING for E2/E2b (still no
+  sub-capacity points there).
+- `evaluate_holdout` now also scores latency predictions where the model is
+  defined (below fitted C), records "no finite prediction" notes above C,
+  and the leakage guard is unchanged (re-asserted on sweep data in
+  `tests/fitting/test_sweep_holdout.py`).
+- 9 new tests; full suite 168/168 green. Third fitted profile:
+  `profiles/fitted/mock-loopback-cpu-dev__mock-8b__gateway-mock-flags-v1-conncap2.json`.
+
 ## Assumptions register
 
 | # | Date | Assumption | Reversible? | Revisit when |
@@ -285,6 +332,14 @@ Running log of notable events: surprises, assumption changes, reduced scope, pre
   which are independently reproducible from the committed fixtures. No
   pause required (data-accuracy correction, not a scope/contract change).
   Full account: `docs/notes/fitting-method.md` §2.
+  **RESOLVED same day (2026-07-11):** the orchestrator confirmed the
+  discrepancy was an upstream brief-attribution error — the sweep exists at
+  `inferbench/docs/evidence/ib-t008/` (a path absent from the brief's
+  corpus list), with the knee at declared 21.122 rps in `knee-result.json`
+  (confidence 0.8, ttft_p99 plateau-departure). The evidence itself was
+  always consistent; the finding above (nothing in the four *listed*
+  directories) remains accurate as stated. Follow-up work re-fit on the
+  corrected corpus — see the "FL-T004 follow-up" log entry.
 - **2026-07-11 — `scipy` not added despite ADR-0001 flagging it as a likely
   FL-T004 dependency.** Evidence: every fittable engine-config has at most
   two real data points, so every model in `fleetlab/fitting/` has exactly

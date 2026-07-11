@@ -125,6 +125,14 @@ class HoldoutPointReport:
     abs_error_rps: float
     rel_error: float
     measurement_stderr_rps: float
+    # latency-model scoring — populated only when the profile has a fitted
+    # latency model AND the holdout point's offered rate is below the fitted
+    # capacity (the model has no finite prediction at/above C; that case is
+    # recorded in latency_note, never silently clipped to a number).
+    actual_e2e_p50_seconds: Optional[float] = None
+    predicted_e2e_p50_seconds: Optional[float] = None
+    latency_rel_error: Optional[float] = None
+    latency_note: Optional[str] = None
 
 
 @dataclass(frozen=True)
@@ -164,6 +172,21 @@ def evaluate_holdout(
         predicted = predict_achieved_rps(profile.capacity_fit, p.offered_rate_rps)
         abs_err = predicted - p.achieved_rate_rps
         rel_err = abs_err / p.achieved_rate_rps
+
+        actual_lat: Optional[float] = None
+        predicted_lat: Optional[float] = None
+        lat_rel: Optional[float] = None
+        lat_note: Optional[str] = None
+        if profile.latency_fit is not None:
+            actual_lat = p.e2e_p50_seconds
+            try:
+                predicted_lat = predict_latency(profile.latency_fit, p.offered_rate_rps)
+                lat_rel = (predicted_lat - actual_lat) / actual_lat
+            except LatencyModelUndefined as exc:
+                lat_note = str(exc)
+        elif profile.latency_pending_reason is not None:
+            lat_note = f"latency model not fitted: {profile.latency_pending_reason}"
+
         reports.append(
             HoldoutPointReport(
                 run_id=p.run_id,
@@ -173,6 +196,10 @@ def evaluate_holdout(
                 abs_error_rps=abs_err,
                 rel_error=rel_err,
                 measurement_stderr_rps=p.achieved_rate_stderr_rps,
+                actual_e2e_p50_seconds=actual_lat,
+                predicted_e2e_p50_seconds=predicted_lat,
+                latency_rel_error=lat_rel,
+                latency_note=lat_note,
             )
         )
     return HoldoutReport(points=tuple(reports))

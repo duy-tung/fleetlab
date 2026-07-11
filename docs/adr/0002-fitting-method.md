@@ -83,7 +83,54 @@ even though doing so would make a richer model temptingly easier to fit.
   real holdout set left over — that is the point to revisit this ADR and
   reconsider `scipy.optimize` for a nonlinear multi-parameter fit.
 
+## Addendum (2026-07-11, same day): the ib-t008 sweep corpus and the weighted-LSQ upgrade
+
+Shortly after this ADR was written, the corpus scope was corrected upstream:
+the six-point rate sweep this repo's original brief alluded to ("knee at
+21.12 rps") exists in `inferbench/docs/evidence/ib-t008/` — a path missing
+from the brief's corpus list (orchestrator-acknowledged attribution error).
+Three decisions follow, all consistent with this ADR's principles:
+
+1. **`fit_capacity` upgraded from single-estimate inverse-variance
+   combination to exact weighted least squares** over all training points.
+   The clamp model's SSE is piecewise quadratic in `C` (breakpoints at the
+   training offered rates; each segment's optimum is the weighted mean of
+   the clamped points' achieved rates), so the global optimum is found by
+   enumerating at most n segments — still pure algebra, still no `scipy`,
+   still one free parameter. For a single clamped training point the two
+   methods coincide exactly; the ib-t010 E2/E2b fitted profiles were
+   regenerated and are **byte-identical** before and after the upgrade.
+   Rationale for the change: with 4 training points, "average the achieved
+   rates of every point showing any clamping" (the old combination) lets a
+   barely-degraded near-knee point drag `C` far below the plateau; the LSQ
+   fit correctly attributes near-knee points to the `offered <= C` branch.
+2. **Raw-events corpus path** (`load_corpus_point_from_events`): the sweep
+   ships kit-valid raw events + manifests but no aggregated
+   `benchmark-result.json`; points are computed via the FL-T002 ingest
+   loaders using the same conventions (ok-count over measured window;
+   pooled percentiles on the `scheduled_send_ts` basis). Offered rate uses
+   the **empirical scheduled-send rate**, not the declared `rate_rps` — the
+   sweep's seeded schedule ran a uniform 7.46% fast (same seed every point),
+   and fitting against the declared rate would bake that bias into every
+   parameter. The basis is recorded on every corpus point
+   (`offered_rate_basis`).
+3. **One-parameter forms retained** even though 4+ training points could
+   now support richer models. The holdout results characterize the
+   one-parameter forms' misfit precisely (capacity within ~1.05x combined
+   1-sigma; latency multiplicative-form limitation quantified at −34% low-
+   rate extrapolation); moving to a two-parameter additive latency model is
+   a *reviewed follow-up*, not a silent mid-task upgrade. That follow-up is
+   this addendum's revisit trigger, now concretely reachable.
+
+The sweep-fitted profile carries the sweep's disclosed client-transport
+concurrency cap (2) in its engine-config identity and its
+`concurrency_cap_disclosure` block — it models that specific
+capacity-limited target, never general mock behavior.
+
 ## Planned follow-up
 
 - ADR-0003 — signal-comparison design (FL-T006), unchanged from ADR-0001's
   forward pointer.
+- Two-parameter additive latency form (`base_service + queue_term`) for the
+  ib-t008 sweep config — now validatable with holdout left over (see
+  Addendum item 3).

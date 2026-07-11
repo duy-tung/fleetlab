@@ -115,6 +115,24 @@ Execution order: FL-T002 → FL-T003 → FL-T004 (G8 review) → {FL-T005, FL-T0
   claims, asserted by a dedicated test. No `scipy` added — one parameter,
   one training point is an algebraic solve, not an optimization
   (`docs/adr/0002-fitting-method.md`).
+- **Status update (2026-07-11, same day — corrected corpus):** the "knee at
+  21.12 rps" sweep exists at `inferbench/docs/evidence/ib-t008/` (missing
+  from the original brief's corpus list; upstream attribution error,
+  orchestrator-acknowledged). Re-fit on the corrected corpus: 6 offered-rate
+  points for engine-config `gateway-mock-flags-v1-conncap2` (client-side
+  concurrency cap 2, disclosed and carried into the profile identity).
+  **G8 on this config: capacity WITHIN STATED ERROR both directions**
+  (interior +0.7%/−0.4%; at/beyond-capacity extrapolation −6.7%/+7.2% ≈
+  1.05x the combined 1-sigma error), and the **latency profile is now
+  FITTED** (interior interpolation +10.0%, within the stated l0 parameter
+  error; low-rate extrapolation −34.4%, a documented functional-form miss —
+  additive target vs multiplicative model, reviewed two-parameter follow-up
+  recorded in ADR-0002's addendum). The ib-t010 E2/E2b MISS (12.6–20.4%)
+  stands unchanged alongside; E2/E2b latency still PENDING; memory profile
+  still PENDING. `fit_capacity` upgraded to exact weighted least squares
+  (E2/E2b profiles byte-identical before/after). 33 fitting tests, full
+  suite 168/168 green. Evidence: `reports/holdout-validation.md` §2b,
+  `profiles/fitted/mock-loopback-cpu-dev__mock-8b__gateway-mock-flags-v1-conncap2.json`.
 
 ## FL-T005 — Dynamics: queue growth, cold start, scaling delays, headroom
 - **Goal/Repo:** simulate time-dependent behavior in fleetlab.

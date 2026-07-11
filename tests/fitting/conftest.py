@@ -1,10 +1,39 @@
 from pathlib import Path
+from typing import List
 
 import pytest
 
-from fleetlab.fitting import CorpusPoint, load_corpus_point
+from fleetlab.fitting import CorpusPoint, load_corpus_point, load_corpus_point_from_events
 
 FIXTURES = Path(__file__).parent / "fixtures" / "real" / "ib-t010"
+SWEEP_FIXTURES = Path(__file__).parent / "fixtures" / "real" / "ib-t008" / "sweep"
+
+# The ib-t008 sweep's engine-config identity: gateway config `flags-v1`
+# (dev@74f2372), mock engine flags ttft=20ms/itl=5ms, and -- disclosed in
+# sweep.json -- a client-transport concurrency cap of 2 held fixed across the
+# probe and every point (models a capacity-limited target; the mock/gateway
+# pair has no admission control of its own at that pinned build). The cap is
+# part of the config identity: profiles fitted from this sweep describe THAT
+# capacity-limited setup, not general mock behavior.
+SWEEP_ENGINE_CONFIG_ID = "gateway-mock-flags-v1-conncap2"
+
+
+def sweep_point(index: int) -> CorpusPoint:
+    reps = [1, 2, 3]
+    return load_corpus_point_from_events(
+        run_id=f"ib-t008-sweep-p{index}",
+        events_paths=[SWEEP_FIXTURES / f"point-{index}" / f"rep-{r}" / "events.jsonl" for r in reps],
+        manifest_paths=[SWEEP_FIXTURES / f"point-{index}" / f"rep-{r}" / "manifest.json" for r in reps],
+        workload_path=SWEEP_FIXTURES / f"point-{index}-workload.json",
+        hardware_id="mock-loopback-cpu-dev",
+        model_id="mock-8b",
+        engine_config_id=SWEEP_ENGINE_CONFIG_ID,
+    )
+
+
+@pytest.fixture(scope="session")
+def sweep_points() -> List[CorpusPoint]:
+    return [sweep_point(i) for i in range(6)]
 
 
 def _point(result_name: str, workload_name: str, manifest_dir: str, engine_config_id: str) -> CorpusPoint:

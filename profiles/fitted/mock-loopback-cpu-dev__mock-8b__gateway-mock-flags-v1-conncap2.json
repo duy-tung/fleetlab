@@ -1,0 +1,138 @@
+{
+  "profile_id": "mock-loopback-cpu-dev__mock-8b__gateway-mock-flags-v1-conncap2",
+  "as_of": "2026-07-11",
+  "basis": "measured",
+  "hardware": {
+    "id": "mock-loopback-cpu-dev",
+    "label": "mock backend (gateway-mediated loopback, local-dev-container, linux/amd64, CPU-only) -- NOT real hardware; profiled for loop-mechanics purposes only, per FL-T004 scope decision."
+  },
+  "model": {
+    "id": "mock-8b",
+    "label": "mock engine checkpoint 'mock-8b' (mockengine@74f2372) -- simulated, not real weights"
+  },
+  "engine_config_id": "gateway-mock-flags-v1-conncap2",
+  "concurrency_cap_disclosure": {
+    "concurrency_cap": 2,
+    "note": "client-transport MaxConnsPerHost, held fixed across the probe and every point: the mock/gateway pair has no admission control of its own at the pinned build (docs/implementation-notes.md), so this models the target's effective capacity for the purpose of this verification sweep. Go's http.Transport blocks (queues) requests past this cap instead of failing them, producing genuine client-visible queueing delay that counts against latency via the scheduled-send basis (ADR-0001).",
+    "consequence": "this profile describes a SPECIFIC capacity-limited target (client-transport MaxConnsPerHost=2 held fixed across the probe and every sweep point), not general mock/gateway behavior -- any consumer of this profile inherits that scope restriction."
+  },
+  "offered_rate_basis": {
+    "basis": "empirical-scheduled-send-rate",
+    "note": "the sweep's seeded schedule ran a uniform 7.46% faster than each point's declared rate_rps (same seed at every point -> same exponential draws, scaled per point). Fitting against the declared rate would bake that bias into every parameter; the empirical scheduled-send rate from the raw events is used instead, and both rates remain available via the provenance files."
+  },
+  "capacity_profile": {
+    "capacity_rps": 26.15722104139299,
+    "capacity_rps_stderr": 1.2330632250242952,
+    "model": "achieved_rps(offered) = min(offered, capacity_rps); exact weighted least squares (ADR-0002 addendum)",
+    "fitted_parameters": 1,
+    "training_points": 4,
+    "basis": "measured"
+  },
+  "latency_profile": {
+    "status": "FITTED",
+    "model": "e2e_p50(offered) = l0_seconds * C / (C - offered), offered < C only",
+    "l0_seconds": 0.03865508167223155,
+    "l0_seconds_stderr": 0.00891038282502028,
+    "fitted_parameters": 1,
+    "training_points_below_capacity": 3,
+    "basis": "measured",
+    "known_limitation": "the implied l0 disagrees across training points (55ms at the lowest rate down to 18ms near the knee), signalling a functional-form misfit: the target's latency is additive (fixed base service time + queueing delay) while this one-parameter model is multiplicative. Interior interpolation validates at +10.0% (within the stated l0 parameter error of ~23%); extrapolation to the lowest rate misses by -34.4% (documented in reports/holdout-validation.md -- a result, not hidden)."
+  },
+  "holdout_validation": {
+    "direction": "train {p0,p1,p3,p4}, holdout {p2 interior, p5 overload}",
+    "points": [
+      {
+        "holdout_run_id": "ib-t008-sweep-p2",
+        "holdout_offered_rate_rps": 16.12737486682804,
+        "holdout_actual_achieved_rps": 16.0146753132009,
+        "holdout_predicted_achieved_rps": 16.12737486682804,
+        "abs_error_rps": 0.11269955362713802,
+        "rel_error": 0.00703726747018341,
+        "measurement_stderr_rps": 0.7549390341643435,
+        "error_vs_combined_1sigma_ratio": 0.07794886523870556,
+        "latency": {
+          "actual_e2e_p50_seconds": 0.09166193008422852,
+          "predicted_e2e_p50_seconds": 0.10081007206648579,
+          "rel_error": 0.09980306953880427
+        }
+      },
+      {
+        "holdout_run_id": "ib-t008-sweep-p5",
+        "holdout_offered_rate_rps": 35.83861297314383,
+        "holdout_actual_achieved_rps": 28.049982268845323,
+        "holdout_predicted_achieved_rps": 26.15722104139299,
+        "abs_error_rps": -1.8927612274523327,
+        "rel_error": -0.06747816128050081,
+        "measurement_stderr_rps": 1.3222888449641965,
+        "error_vs_combined_1sigma_ratio": 1.0468766131673897,
+        "latency": {
+          "note": "offered_rate_rps=35.83861297314383 >= fitted capacity 26.157 rps \u2014 the queueing-blowup model predicts unbounded latency (division by <= 0); no finite prediction exists."
+        }
+      }
+    ],
+    "g8_outcome": "WITHIN STATED ERROR for capacity: the overload-extrapolation miss (-6.7%) is 1.05x the combined 1-sigma error (fit stderr + measurement stderr in quadrature) and the interior point is nearly exact (+0.7%); latency interior interpolation (+10.0%) is within the stated l0 parameter error. The reverse direction reproduces the same magnitudes. See reports/holdout-validation.md \u00a72b."
+  },
+  "reverse_direction_robustness_check": {
+    "direction": "train {p1,p2,p3,p5}, holdout {p0 low-rate, p4 near-capacity}",
+    "capacity_rps": 28.049982268845326,
+    "points": [
+      {
+        "holdout_run_id": "ib-t008-sweep-p0",
+        "holdout_offered_rate_rps": 2.9865509431298367,
+        "holdout_actual_achieved_rps": 2.9989082972728025,
+        "holdout_predicted_achieved_rps": 2.9865509431298367,
+        "abs_error_rps": -0.012357354142965793,
+        "rel_error": -0.004120617544125484,
+        "measurement_stderr_rps": 0.1413698928772134,
+        "error_vs_combined_1sigma_ratio": 0.009292469810514232,
+        "latency": {
+          "actual_e2e_p50_seconds": 0.062250494956970215,
+          "predicted_e2e_p50_seconds": 0.04082186629413156,
+          "rel_error": -0.34423226156917947
+        }
+      },
+      {
+        "holdout_run_id": "ib-t008-sweep-p4",
+        "holdout_offered_rate_rps": 29.26819985809359,
+        "holdout_actual_achieved_rps": 26.157221041392987,
+        "holdout_predicted_achieved_rps": 28.049982268845326,
+        "abs_error_rps": 1.8927612274523398,
+        "rel_error": 0.07236094478297615,
+        "measurement_stderr_rps": 1.2330632250242952,
+        "error_vs_combined_1sigma_ratio": 1.0468766131673934,
+        "latency": {
+          "note": "offered_rate_rps=29.26819985809359 >= fitted capacity 28.050 rps \u2014 the queueing-blowup model predicts unbounded latency (division by <= 0); no finite prediction exists."
+        }
+      }
+    ],
+    "note": "NOT the canonical profile; recorded to show error magnitudes are symmetric across fit direction."
+  },
+  "knee_cross_check": {
+    "inferbench_knee_declared_rate_rps": 21.122027534283404,
+    "inferbench_knee_confidence": 0.8,
+    "inferbench_knee_signal": "ttft_seconds_p99",
+    "inferbench_probe_capacity_estimate_rps": 27.79214149247817,
+    "note": "independently, inferbench's own knee detection places the knee at sweep point 3 (declared 21.12 rps / empirical 22.70 rps) via ttft_p99 plateau departure; fleetlab's fitted capacity (26.16-28.05 rps depending on direction) sits between that knee and the probe estimate (27.79 rps), as a throughput plateau should relative to a latency-departure knee."
+  },
+  "provenance": {
+    "source_sweep_manifest": "inferbench/docs/evidence/ib-t008/sweep/sweep.json",
+    "source_knee_result": "inferbench/docs/evidence/ib-t008/knee-result.json",
+    "source_run_dirs": [
+      "inferbench/docs/evidence/ib-t008/sweep/point-0/rep-{1,2,3}/",
+      "inferbench/docs/evidence/ib-t008/sweep/point-1/rep-{1,2,3}/",
+      "inferbench/docs/evidence/ib-t008/sweep/point-2/rep-{1,2,3}/",
+      "inferbench/docs/evidence/ib-t008/sweep/point-3/rep-{1,2,3}/",
+      "inferbench/docs/evidence/ib-t008/sweep/point-4/rep-{1,2,3}/",
+      "inferbench/docs/evidence/ib-t008/sweep/point-5/rep-{1,2,3}/"
+    ],
+    "source_workloads": [
+      "inferbench/docs/evidence/ib-t008/sweep/point-0-workload.json",
+      "inferbench/docs/evidence/ib-t008/sweep/point-1-workload.json",
+      "inferbench/docs/evidence/ib-t008/sweep/point-2-workload.json",
+      "inferbench/docs/evidence/ib-t008/sweep/point-3-workload.json",
+      "inferbench/docs/evidence/ib-t008/sweep/point-4-workload.json",
+      "inferbench/docs/evidence/ib-t008/sweep/point-5-workload.json"
+    ],
+    "fixture_copies_committed_at": "tests/fitting/fixtures/real/ib-t008"
+  }
+}
