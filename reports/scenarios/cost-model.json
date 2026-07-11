@@ -1,0 +1,643 @@
+{
+  "generated_by": "python3 -m fleetlab.cost.build_cost_report",
+  "as_of": "2026-07-11",
+  "basis": "MODEL DEMONSTRATION -- see module docstring: fitted capacity/latency from a measured CPU-only mock backend, priced against a real GPU's example cost profile. NOT a real cost claim for any actual hardware.",
+  "fitted_profile": {
+    "profile_id": "mock-loopback-cpu-dev__mock-8b__gateway-mock-flags-v1-conncap2",
+    "profile_path": "profiles/fitted/mock-loopback-cpu-dev__mock-8b__gateway-mock-flags-v1-conncap2.json",
+    "profile_sha256": "8a1609618c256a4b24f8536438b6c98978c12886aa4c24fdbdaae3e5179fc8fa",
+    "capacity_rps": 26.15722104139299,
+    "capacity_rps_stderr": 1.2330632250242952,
+    "l0_seconds": 0.03865508167223155,
+    "l0_seconds_stderr": 0.00891038282502028,
+    "hardware_label": "mock backend (gateway-mediated loopback, local-dev-container, linux/amd64, CPU-only) -- NOT real hardware; profiled for loop-mechanics purposes only, per FL-T004 scope decision."
+  },
+  "cost_profile": {
+    "profile_id": "cost-g5-xlarge-ondemand",
+    "version": "0.1.0",
+    "path": "profiles/examples/cost-g5-xlarge-ondemand.json",
+    "sha256": "ea46229cd7c24d22af1f408c82fc735c4073871fe5bb7951e8f5310f3db33c0f",
+    "hardware_priced": "hardware-a10g-g5-xlarge (a real NVIDIA A10G GPU -- NOT the hardware capacity_rps/l0_seconds above were measured on)"
+  },
+  "slo_profile": {
+    "slo_id": "slo-chat-interactive",
+    "path": "profiles/examples/slo-chat-interactive.json",
+    "sha256": "c333e40410c5aae48d2cb0d89353e3dfcd5412e731ec72d2aa2a705ad1a25d5d",
+    "objective_used": "e2e_duration_seconds p95 < 10"
+  },
+  "measured_tokens_per_request": {
+    "n_ok_events": 2700,
+    "mean_input_tokens": 48.57333333333333,
+    "mean_output_tokens": 10.633333333333333,
+    "mean_total_tokens": 59.20666666666666,
+    "source": "tests/fitting/fixtures/real/ib-t008/sweep/point-*/rep-*/events.jsonl (measured)"
+  },
+  "cost_at_slo": {
+    "on_demand": {
+      "usd_per_hour": 1.006,
+      "pricing_model": "on-demand",
+      "price_provenance_basis": "source-reported",
+      "price_as_of": "2026-07-10",
+      "slo_latency_seconds": 10,
+      "slo_signal": "e2e_duration_seconds_p95",
+      "slo_note": "the fitted latency model predicts e2e p50, not the SLO objective's own p95 statistic -- inverting a p50 model against a p95 threshold is a stated approximation, not a rigorous claim (see fleetlab/cost/model.py module docstring)",
+      "goodput_at_slo_rps": 26.056110089825623,
+      "fraction_of_capacity": 0.9961344918327768,
+      "cost_per_request_usd": 1.0724718443431884e-05,
+      "cost_per_1e6_tokens_usd": 0.18114038582533304
+    },
+    "spot": {
+      "usd_per_hour": 0.42,
+      "pricing_model": "spot",
+      "price_provenance_basis": "assumed",
+      "price_as_of": "2026-07-10",
+      "slo_latency_seconds": 10,
+      "slo_signal": "e2e_duration_seconds_p95",
+      "slo_note": "the fitted latency model predicts e2e p50, not the SLO objective's own p95 statistic -- inverting a p50 model against a p95 threshold is a stated approximation, not a rigorous claim (see fleetlab/cost/model.py module docstring)",
+      "goodput_at_slo_rps": 26.056110089825623,
+      "fraction_of_capacity": 0.9961344918327768,
+      "cost_per_request_usd": 4.4775166463632115e-06,
+      "cost_per_1e6_tokens_usd": 0.07562521078194817
+    }
+  },
+  "recompute_check_vs_vendor_example": {
+    "source_file": "vendor/serving-contracts-v0.2.0/examples/benchmark/result.json",
+    "note": "This vendor example fixture is itself illustrative ('Example fixture; all values illustrative, no measurement claims' per its own comparability_note) -- every REAL benchmark-result in this repo's corpus carries cost:null (checked: all 10 result files under tests/fitting/fixtures/real/ and tests/golden/fixtures/real/). This is the only recompute check the corpus supports.",
+    "cost_profile_ref": {
+      "id": "cost-g5-xlarge-ondemand",
+      "version": "0.1.0"
+    },
+    "output_tokens_per_second": 1430.5,
+    "usd_per_hour_used": 1.006,
+    "stated_per_million_output_tokens_usd": 0.196,
+    "recomputed_per_million_output_tokens_usd": 0.1953473921317333,
+    "rel_error": -0.0033296319809525917,
+    "per_million_tokens_usd_recompute": "NOT independently recomputable from this file: benchmark-result.schema.json's throughput block has no total (input+output) token rate field, only output_tokens_per_second -- a schema-coverage gap, not an omission in this report.",
+    "stated_per_million_tokens_usd": 0.161
+  },
+  "sensitivity": {
+    "grid": {
+      "price_multipliers": [
+        0.5,
+        1.0,
+        1.5,
+        2.0
+      ],
+      "slo_latency_seconds_grid": [
+        10.0,
+        1.0,
+        0.2,
+        0.1,
+        0.04058783575584313
+      ],
+      "load_fractions": [
+        0.5,
+        0.8,
+        1.0
+      ]
+    },
+    "note": "Pure closed-form arithmetic (goodput_at_slo_rps + cost_per_1e6_tokens_usd), no RNG -- deterministic by construction, nothing to seed.",
+    "points": [
+      {
+        "price_multiplier": 0.5,
+        "usd_per_hour": 0.503,
+        "slo_latency_seconds": 10.0,
+        "load_fraction_of_slo_goodput": 0.5,
+        "achieved_rps": 13.028055044912811,
+        "cost_per_1e6_tokens_usd": 0.18114038582533304,
+        "cost_per_request_usd": 1.0724718443431884e-05
+      },
+      {
+        "price_multiplier": 0.5,
+        "usd_per_hour": 0.503,
+        "slo_latency_seconds": 10.0,
+        "load_fraction_of_slo_goodput": 0.8,
+        "achieved_rps": 20.8448880718605,
+        "cost_per_1e6_tokens_usd": 0.11321274114083313,
+        "cost_per_request_usd": 6.702949027144927e-06
+      },
+      {
+        "price_multiplier": 0.5,
+        "usd_per_hour": 0.503,
+        "slo_latency_seconds": 10.0,
+        "load_fraction_of_slo_goodput": 1.0,
+        "achieved_rps": 26.056110089825623,
+        "cost_per_1e6_tokens_usd": 0.09057019291266652,
+        "cost_per_request_usd": 5.362359221715942e-06
+      },
+      {
+        "price_multiplier": 0.5,
+        "usd_per_hour": 0.503,
+        "slo_latency_seconds": 1.0,
+        "load_fraction_of_slo_goodput": 0.5,
+        "achieved_rps": 12.573055762859665,
+        "cost_per_1e6_tokens_usd": 0.18769557392406225,
+        "cost_per_request_usd": 1.1112829280130646e-05
+      },
+      {
+        "price_multiplier": 0.5,
+        "usd_per_hour": 0.503,
+        "slo_latency_seconds": 1.0,
+        "load_fraction_of_slo_goodput": 0.8,
+        "achieved_rps": 20.116889220575466,
+        "cost_per_1e6_tokens_usd": 0.1173097337025389,
+        "cost_per_request_usd": 6.945518300081653e-06
+      },
+      {
+        "price_multiplier": 0.5,
+        "usd_per_hour": 0.503,
+        "slo_latency_seconds": 1.0,
+        "load_fraction_of_slo_goodput": 1.0,
+        "achieved_rps": 25.14611152571933,
+        "cost_per_1e6_tokens_usd": 0.09384778696203112,
+        "cost_per_request_usd": 5.556414640065323e-06
+      },
+      {
+        "price_multiplier": 0.5,
+        "usd_per_hour": 0.503,
+        "slo_latency_seconds": 0.2,
+        "load_fraction_of_slo_goodput": 0.5,
+        "achieved_rps": 10.550836731512346,
+        "cost_per_1e6_tokens_usd": 0.2236701199574829,
+        "cost_per_request_usd": 1.3242762235616037e-05
+      },
+      {
+        "price_multiplier": 0.5,
+        "usd_per_hour": 0.503,
+        "slo_latency_seconds": 0.2,
+        "load_fraction_of_slo_goodput": 0.8,
+        "achieved_rps": 16.881338770419756,
+        "cost_per_1e6_tokens_usd": 0.1397938249734268,
+        "cost_per_request_usd": 8.276726397260022e-06
+      },
+      {
+        "price_multiplier": 0.5,
+        "usd_per_hour": 0.503,
+        "slo_latency_seconds": 0.2,
+        "load_fraction_of_slo_goodput": 1.0,
+        "achieved_rps": 21.101673463024692,
+        "cost_per_1e6_tokens_usd": 0.11183505997874145,
+        "cost_per_request_usd": 6.6213811178080184e-06
+      },
+      {
+        "price_multiplier": 0.5,
+        "usd_per_hour": 0.503,
+        "slo_latency_seconds": 0.1,
+        "load_fraction_of_slo_goodput": 0.5,
+        "achieved_rps": 8.023062942328197,
+        "cost_per_1e6_tokens_usd": 0.29414039679768067,
+        "cost_per_request_usd": 1.7415072426401345e-05
+      },
+      {
+        "price_multiplier": 0.5,
+        "usd_per_hour": 0.503,
+        "slo_latency_seconds": 0.1,
+        "load_fraction_of_slo_goodput": 0.8,
+        "achieved_rps": 12.836900707725116,
+        "cost_per_1e6_tokens_usd": 0.1838377479985504,
+        "cost_per_request_usd": 1.0884420266500841e-05
+      },
+      {
+        "price_multiplier": 0.5,
+        "usd_per_hour": 0.503,
+        "slo_latency_seconds": 0.1,
+        "load_fraction_of_slo_goodput": 1.0,
+        "achieved_rps": 16.046125884656394,
+        "cost_per_1e6_tokens_usd": 0.14707019839884033,
+        "cost_per_request_usd": 8.707536213200672e-06
+      },
+      {
+        "price_multiplier": 0.5,
+        "usd_per_hour": 0.503,
+        "slo_latency_seconds": 0.04058783575584313,
+        "load_fraction_of_slo_goodput": 0.5,
+        "achieved_rps": 0.6227909771760243,
+        "cost_per_1e6_tokens_usd": 3.789243909874732,
+        "cost_per_request_usd": 0.00022434850109064996
+      },
+      {
+        "price_multiplier": 0.5,
+        "usd_per_hour": 0.503,
+        "slo_latency_seconds": 0.04058783575584313,
+        "load_fraction_of_slo_goodput": 0.8,
+        "achieved_rps": 0.9964655634816388,
+        "cost_per_1e6_tokens_usd": 2.368277443671708,
+        "cost_per_request_usd": 0.00014021781318165622
+      },
+      {
+        "price_multiplier": 0.5,
+        "usd_per_hour": 0.503,
+        "slo_latency_seconds": 0.04058783575584313,
+        "load_fraction_of_slo_goodput": 1.0,
+        "achieved_rps": 1.2455819543520485,
+        "cost_per_1e6_tokens_usd": 1.894621954937366,
+        "cost_per_request_usd": 0.00011217425054532498
+      },
+      {
+        "price_multiplier": 1.0,
+        "usd_per_hour": 1.006,
+        "slo_latency_seconds": 10.0,
+        "load_fraction_of_slo_goodput": 0.5,
+        "achieved_rps": 13.028055044912811,
+        "cost_per_1e6_tokens_usd": 0.3622807716506661,
+        "cost_per_request_usd": 2.1449436886863767e-05
+      },
+      {
+        "price_multiplier": 1.0,
+        "usd_per_hour": 1.006,
+        "slo_latency_seconds": 10.0,
+        "load_fraction_of_slo_goodput": 0.8,
+        "achieved_rps": 20.8448880718605,
+        "cost_per_1e6_tokens_usd": 0.22642548228166626,
+        "cost_per_request_usd": 1.3405898054289854e-05
+      },
+      {
+        "price_multiplier": 1.0,
+        "usd_per_hour": 1.006,
+        "slo_latency_seconds": 10.0,
+        "load_fraction_of_slo_goodput": 1.0,
+        "achieved_rps": 26.056110089825623,
+        "cost_per_1e6_tokens_usd": 0.18114038582533304,
+        "cost_per_request_usd": 1.0724718443431884e-05
+      },
+      {
+        "price_multiplier": 1.0,
+        "usd_per_hour": 1.006,
+        "slo_latency_seconds": 1.0,
+        "load_fraction_of_slo_goodput": 0.5,
+        "achieved_rps": 12.573055762859665,
+        "cost_per_1e6_tokens_usd": 0.3753911478481245,
+        "cost_per_request_usd": 2.222565856026129e-05
+      },
+      {
+        "price_multiplier": 1.0,
+        "usd_per_hour": 1.006,
+        "slo_latency_seconds": 1.0,
+        "load_fraction_of_slo_goodput": 0.8,
+        "achieved_rps": 20.116889220575466,
+        "cost_per_1e6_tokens_usd": 0.2346194674050778,
+        "cost_per_request_usd": 1.3891036600163306e-05
+      },
+      {
+        "price_multiplier": 1.0,
+        "usd_per_hour": 1.006,
+        "slo_latency_seconds": 1.0,
+        "load_fraction_of_slo_goodput": 1.0,
+        "achieved_rps": 25.14611152571933,
+        "cost_per_1e6_tokens_usd": 0.18769557392406225,
+        "cost_per_request_usd": 1.1112829280130646e-05
+      },
+      {
+        "price_multiplier": 1.0,
+        "usd_per_hour": 1.006,
+        "slo_latency_seconds": 0.2,
+        "load_fraction_of_slo_goodput": 0.5,
+        "achieved_rps": 10.550836731512346,
+        "cost_per_1e6_tokens_usd": 0.4473402399149658,
+        "cost_per_request_usd": 2.6485524471232074e-05
+      },
+      {
+        "price_multiplier": 1.0,
+        "usd_per_hour": 1.006,
+        "slo_latency_seconds": 0.2,
+        "load_fraction_of_slo_goodput": 0.8,
+        "achieved_rps": 16.881338770419756,
+        "cost_per_1e6_tokens_usd": 0.2795876499468536,
+        "cost_per_request_usd": 1.6553452794520044e-05
+      },
+      {
+        "price_multiplier": 1.0,
+        "usd_per_hour": 1.006,
+        "slo_latency_seconds": 0.2,
+        "load_fraction_of_slo_goodput": 1.0,
+        "achieved_rps": 21.101673463024692,
+        "cost_per_1e6_tokens_usd": 0.2236701199574829,
+        "cost_per_request_usd": 1.3242762235616037e-05
+      },
+      {
+        "price_multiplier": 1.0,
+        "usd_per_hour": 1.006,
+        "slo_latency_seconds": 0.1,
+        "load_fraction_of_slo_goodput": 0.5,
+        "achieved_rps": 8.023062942328197,
+        "cost_per_1e6_tokens_usd": 0.5882807935953613,
+        "cost_per_request_usd": 3.483014485280269e-05
+      },
+      {
+        "price_multiplier": 1.0,
+        "usd_per_hour": 1.006,
+        "slo_latency_seconds": 0.1,
+        "load_fraction_of_slo_goodput": 0.8,
+        "achieved_rps": 12.836900707725116,
+        "cost_per_1e6_tokens_usd": 0.3676754959971008,
+        "cost_per_request_usd": 2.1768840533001682e-05
+      },
+      {
+        "price_multiplier": 1.0,
+        "usd_per_hour": 1.006,
+        "slo_latency_seconds": 0.1,
+        "load_fraction_of_slo_goodput": 1.0,
+        "achieved_rps": 16.046125884656394,
+        "cost_per_1e6_tokens_usd": 0.29414039679768067,
+        "cost_per_request_usd": 1.7415072426401345e-05
+      },
+      {
+        "price_multiplier": 1.0,
+        "usd_per_hour": 1.006,
+        "slo_latency_seconds": 0.04058783575584313,
+        "load_fraction_of_slo_goodput": 0.5,
+        "achieved_rps": 0.6227909771760243,
+        "cost_per_1e6_tokens_usd": 7.578487819749464,
+        "cost_per_request_usd": 0.0004486970021812999
+      },
+      {
+        "price_multiplier": 1.0,
+        "usd_per_hour": 1.006,
+        "slo_latency_seconds": 0.04058783575584313,
+        "load_fraction_of_slo_goodput": 0.8,
+        "achieved_rps": 0.9964655634816388,
+        "cost_per_1e6_tokens_usd": 4.736554887343416,
+        "cost_per_request_usd": 0.00028043562636331245
+      },
+      {
+        "price_multiplier": 1.0,
+        "usd_per_hour": 1.006,
+        "slo_latency_seconds": 0.04058783575584313,
+        "load_fraction_of_slo_goodput": 1.0,
+        "achieved_rps": 1.2455819543520485,
+        "cost_per_1e6_tokens_usd": 3.789243909874732,
+        "cost_per_request_usd": 0.00022434850109064996
+      },
+      {
+        "price_multiplier": 1.5,
+        "usd_per_hour": 1.509,
+        "slo_latency_seconds": 10.0,
+        "load_fraction_of_slo_goodput": 0.5,
+        "achieved_rps": 13.028055044912811,
+        "cost_per_1e6_tokens_usd": 0.543421157475999,
+        "cost_per_request_usd": 3.217415533029565e-05
+      },
+      {
+        "price_multiplier": 1.5,
+        "usd_per_hour": 1.509,
+        "slo_latency_seconds": 10.0,
+        "load_fraction_of_slo_goodput": 0.8,
+        "achieved_rps": 20.8448880718605,
+        "cost_per_1e6_tokens_usd": 0.33963822342249933,
+        "cost_per_request_usd": 2.010884708143478e-05
+      },
+      {
+        "price_multiplier": 1.5,
+        "usd_per_hour": 1.509,
+        "slo_latency_seconds": 10.0,
+        "load_fraction_of_slo_goodput": 1.0,
+        "achieved_rps": 26.056110089825623,
+        "cost_per_1e6_tokens_usd": 0.2717105787379995,
+        "cost_per_request_usd": 1.6087077665147825e-05
+      },
+      {
+        "price_multiplier": 1.5,
+        "usd_per_hour": 1.509,
+        "slo_latency_seconds": 1.0,
+        "load_fraction_of_slo_goodput": 0.5,
+        "achieved_rps": 12.573055762859665,
+        "cost_per_1e6_tokens_usd": 0.5630867217721868,
+        "cost_per_request_usd": 3.333848784039193e-05
+      },
+      {
+        "price_multiplier": 1.5,
+        "usd_per_hour": 1.509,
+        "slo_latency_seconds": 1.0,
+        "load_fraction_of_slo_goodput": 0.8,
+        "achieved_rps": 20.116889220575466,
+        "cost_per_1e6_tokens_usd": 0.35192920110761666,
+        "cost_per_request_usd": 2.0836554900244957e-05
+      },
+      {
+        "price_multiplier": 1.5,
+        "usd_per_hour": 1.509,
+        "slo_latency_seconds": 1.0,
+        "load_fraction_of_slo_goodput": 1.0,
+        "achieved_rps": 25.14611152571933,
+        "cost_per_1e6_tokens_usd": 0.2815433608860934,
+        "cost_per_request_usd": 1.6669243920195964e-05
+      },
+      {
+        "price_multiplier": 1.5,
+        "usd_per_hour": 1.509,
+        "slo_latency_seconds": 0.2,
+        "load_fraction_of_slo_goodput": 0.5,
+        "achieved_rps": 10.550836731512346,
+        "cost_per_1e6_tokens_usd": 0.6710103598724486,
+        "cost_per_request_usd": 3.9728286706848106e-05
+      },
+      {
+        "price_multiplier": 1.5,
+        "usd_per_hour": 1.509,
+        "slo_latency_seconds": 0.2,
+        "load_fraction_of_slo_goodput": 0.8,
+        "achieved_rps": 16.881338770419756,
+        "cost_per_1e6_tokens_usd": 0.41938147492028033,
+        "cost_per_request_usd": 2.483017919178006e-05
+      },
+      {
+        "price_multiplier": 1.5,
+        "usd_per_hour": 1.509,
+        "slo_latency_seconds": 0.2,
+        "load_fraction_of_slo_goodput": 1.0,
+        "achieved_rps": 21.101673463024692,
+        "cost_per_1e6_tokens_usd": 0.3355051799362243,
+        "cost_per_request_usd": 1.9864143353424053e-05
+      },
+      {
+        "price_multiplier": 1.5,
+        "usd_per_hour": 1.509,
+        "slo_latency_seconds": 0.1,
+        "load_fraction_of_slo_goodput": 0.5,
+        "achieved_rps": 8.023062942328197,
+        "cost_per_1e6_tokens_usd": 0.8824211903930418,
+        "cost_per_request_usd": 5.224521727920403e-05
+      },
+      {
+        "price_multiplier": 1.5,
+        "usd_per_hour": 1.509,
+        "slo_latency_seconds": 0.1,
+        "load_fraction_of_slo_goodput": 0.8,
+        "achieved_rps": 12.836900707725116,
+        "cost_per_1e6_tokens_usd": 0.5515132439956512,
+        "cost_per_request_usd": 3.265326079950252e-05
+      },
+      {
+        "price_multiplier": 1.5,
+        "usd_per_hour": 1.509,
+        "slo_latency_seconds": 0.1,
+        "load_fraction_of_slo_goodput": 1.0,
+        "achieved_rps": 16.046125884656394,
+        "cost_per_1e6_tokens_usd": 0.4412105951965209,
+        "cost_per_request_usd": 2.6122608639602014e-05
+      },
+      {
+        "price_multiplier": 1.5,
+        "usd_per_hour": 1.509,
+        "slo_latency_seconds": 0.04058783575584313,
+        "load_fraction_of_slo_goodput": 0.5,
+        "achieved_rps": 0.6227909771760243,
+        "cost_per_1e6_tokens_usd": 11.367731729624193,
+        "cost_per_request_usd": 0.0006730455032719498
+      },
+      {
+        "price_multiplier": 1.5,
+        "usd_per_hour": 1.509,
+        "slo_latency_seconds": 0.04058783575584313,
+        "load_fraction_of_slo_goodput": 0.8,
+        "achieved_rps": 0.9964655634816388,
+        "cost_per_1e6_tokens_usd": 7.104832331015122,
+        "cost_per_request_usd": 0.0004206534395449686
+      },
+      {
+        "price_multiplier": 1.5,
+        "usd_per_hour": 1.509,
+        "slo_latency_seconds": 0.04058783575584313,
+        "load_fraction_of_slo_goodput": 1.0,
+        "achieved_rps": 1.2455819543520485,
+        "cost_per_1e6_tokens_usd": 5.6838658648120965,
+        "cost_per_request_usd": 0.0003365227516359749
+      },
+      {
+        "price_multiplier": 2.0,
+        "usd_per_hour": 2.012,
+        "slo_latency_seconds": 10.0,
+        "load_fraction_of_slo_goodput": 0.5,
+        "achieved_rps": 13.028055044912811,
+        "cost_per_1e6_tokens_usd": 0.7245615433013322,
+        "cost_per_request_usd": 4.2898873773727534e-05
+      },
+      {
+        "price_multiplier": 2.0,
+        "usd_per_hour": 2.012,
+        "slo_latency_seconds": 10.0,
+        "load_fraction_of_slo_goodput": 0.8,
+        "achieved_rps": 20.8448880718605,
+        "cost_per_1e6_tokens_usd": 0.4528509645633325,
+        "cost_per_request_usd": 2.681179610857971e-05
+      },
+      {
+        "price_multiplier": 2.0,
+        "usd_per_hour": 2.012,
+        "slo_latency_seconds": 10.0,
+        "load_fraction_of_slo_goodput": 1.0,
+        "achieved_rps": 26.056110089825623,
+        "cost_per_1e6_tokens_usd": 0.3622807716506661,
+        "cost_per_request_usd": 2.1449436886863767e-05
+      },
+      {
+        "price_multiplier": 2.0,
+        "usd_per_hour": 2.012,
+        "slo_latency_seconds": 1.0,
+        "load_fraction_of_slo_goodput": 0.5,
+        "achieved_rps": 12.573055762859665,
+        "cost_per_1e6_tokens_usd": 0.750782295696249,
+        "cost_per_request_usd": 4.445131712052258e-05
+      },
+      {
+        "price_multiplier": 2.0,
+        "usd_per_hour": 2.012,
+        "slo_latency_seconds": 1.0,
+        "load_fraction_of_slo_goodput": 0.8,
+        "achieved_rps": 20.116889220575466,
+        "cost_per_1e6_tokens_usd": 0.4692389348101556,
+        "cost_per_request_usd": 2.778207320032661e-05
+      },
+      {
+        "price_multiplier": 2.0,
+        "usd_per_hour": 2.012,
+        "slo_latency_seconds": 1.0,
+        "load_fraction_of_slo_goodput": 1.0,
+        "achieved_rps": 25.14611152571933,
+        "cost_per_1e6_tokens_usd": 0.3753911478481245,
+        "cost_per_request_usd": 2.222565856026129e-05
+      },
+      {
+        "price_multiplier": 2.0,
+        "usd_per_hour": 2.012,
+        "slo_latency_seconds": 0.2,
+        "load_fraction_of_slo_goodput": 0.5,
+        "achieved_rps": 10.550836731512346,
+        "cost_per_1e6_tokens_usd": 0.8946804798299316,
+        "cost_per_request_usd": 5.297104894246415e-05
+      },
+      {
+        "price_multiplier": 2.0,
+        "usd_per_hour": 2.012,
+        "slo_latency_seconds": 0.2,
+        "load_fraction_of_slo_goodput": 0.8,
+        "achieved_rps": 16.881338770419756,
+        "cost_per_1e6_tokens_usd": 0.5591752998937072,
+        "cost_per_request_usd": 3.310690558904009e-05
+      },
+      {
+        "price_multiplier": 2.0,
+        "usd_per_hour": 2.012,
+        "slo_latency_seconds": 0.2,
+        "load_fraction_of_slo_goodput": 1.0,
+        "achieved_rps": 21.101673463024692,
+        "cost_per_1e6_tokens_usd": 0.4473402399149658,
+        "cost_per_request_usd": 2.6485524471232074e-05
+      },
+      {
+        "price_multiplier": 2.0,
+        "usd_per_hour": 2.012,
+        "slo_latency_seconds": 0.1,
+        "load_fraction_of_slo_goodput": 0.5,
+        "achieved_rps": 8.023062942328197,
+        "cost_per_1e6_tokens_usd": 1.1765615871907227,
+        "cost_per_request_usd": 6.966028970560538e-05
+      },
+      {
+        "price_multiplier": 2.0,
+        "usd_per_hour": 2.012,
+        "slo_latency_seconds": 0.1,
+        "load_fraction_of_slo_goodput": 0.8,
+        "achieved_rps": 12.836900707725116,
+        "cost_per_1e6_tokens_usd": 0.7353509919942016,
+        "cost_per_request_usd": 4.3537681066003365e-05
+      },
+      {
+        "price_multiplier": 2.0,
+        "usd_per_hour": 2.012,
+        "slo_latency_seconds": 0.1,
+        "load_fraction_of_slo_goodput": 1.0,
+        "achieved_rps": 16.046125884656394,
+        "cost_per_1e6_tokens_usd": 0.5882807935953613,
+        "cost_per_request_usd": 3.483014485280269e-05
+      },
+      {
+        "price_multiplier": 2.0,
+        "usd_per_hour": 2.012,
+        "slo_latency_seconds": 0.04058783575584313,
+        "load_fraction_of_slo_goodput": 0.5,
+        "achieved_rps": 0.6227909771760243,
+        "cost_per_1e6_tokens_usd": 15.156975639498928,
+        "cost_per_request_usd": 0.0008973940043625998
+      },
+      {
+        "price_multiplier": 2.0,
+        "usd_per_hour": 2.012,
+        "slo_latency_seconds": 0.04058783575584313,
+        "load_fraction_of_slo_goodput": 0.8,
+        "achieved_rps": 0.9964655634816388,
+        "cost_per_1e6_tokens_usd": 9.473109774686831,
+        "cost_per_request_usd": 0.0005608712527266249
+      },
+      {
+        "price_multiplier": 2.0,
+        "usd_per_hour": 2.012,
+        "slo_latency_seconds": 0.04058783575584313,
+        "load_fraction_of_slo_goodput": 1.0,
+        "achieved_rps": 1.2455819543520485,
+        "cost_per_1e6_tokens_usd": 7.578487819749464,
+        "cost_per_request_usd": 0.0004486970021812999
+      }
+    ]
+  }
+}
