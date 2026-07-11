@@ -308,3 +308,45 @@ Execution order: FL-T002 → FL-T003 → FL-T004 (G8 review) → {FL-T005, FL-T0
 - **Evidence:** recommendation file + limitations report + inferops dry-run log.
 - **Integration impact:** I6 loop (the central story).
 - **Stop condition:** inferops dry-run consumes it.
+- **Status (2026-07-11): DONE for everything within fleetlab's control;
+  the inferops dry-run half of the stop condition is honestly
+  PENDING-on-RQ-14 (recorded, not skipped).** `fleetlab/emit/{topology,
+  recommendation,build_recommendation,dry_run_validate}.py` +
+  `fleetlab/cli.py` (`fleetlab recommend --results ... --slo ... --cost
+  ...`, registered via `pyproject.toml` `[project.scripts]`) implemented;
+  50 tests green (`tests/emit/`), full suite 301/301.
+  **The real recommendation** (FL-T004's E2/E2b overload evidence — the
+  single mock-backend replica saturates well below the "5x" 189.0362 rps
+  offered-rate stress-test point): recommends **6 replicas** of
+  `gateway-mock-admission-sane-v1` (fitted per-replica capacity 33.159 ±
+  1.105 rps), predicted goodput 189.036 rps with uncertainty **[165.279,
+  189.036]** — the lower bound applies this profile's own published **G8
+  holdout relative error (−12.6%, `reports/holdout-validation.md` §2a)**,
+  which dominates the fit's own 3.3%-relative stderr; autoscaling signal
+  `inference_queue_depth` (gateway, Contract 2 canonical — FL-T006's
+  `predicted_goodput_deficit` primary recommendation is fleetlab's own
+  derived simulation signal, not a metric the gateway emits, so the
+  Contract-2-vocabulary fallback is named instead, with FL-T006's own
+  caveats carried into `autoscaling.notes`), thresholds `queue_depth > 1`
+  (scale out, 60s) / `< 1` (scale in, 300s), `assumed`, disclosed. Honestly
+  discloses **no N-1 failover margin** at this exact demand (a 23.24 rps
+  deficit) and that **linear replica-scaling is itself untested** (no
+  multi-replica benchmark exists anywhere in this program's evidence) — the
+  `re_measurement` plan is built specifically to resolve both the
+  scaling-model question and which of E2's two single-point capacity
+  estimates (33.159 baseline-fit vs 37.925 overload-empirical) is closer to
+  true multi-replica behavior. Emitted:
+  `examples/recommendations/e2-admission-sane-v1-5x-scaleout.capacity-recommendation.json`.
+  **Kit-validated**: `python3 vendor/serving-contracts-v0.2.0/kit/
+  contracts-validate.py --bundle vendor/serving-contracts-v0.2.0 check
+  examples/recommendations/` → `PASS ... [capacity-recommendation]`,
+  `check: 1/1 artifact(s) valid`. Limitations report (the mandatory honesty
+  artifact): `reports/limitations.md`. **Deviation**: the inferops dry-run
+  stop-condition item cannot run — inferops' runtime environment decision
+  (RQ-14) is unresolved — so the consumption-side validation script
+  (`fleetlab/emit/dry_run_validate.py`, tested against a synthetic,
+  clearly-labeled post-change fixture) is written and named in the
+  recommendation's own top-level `notes` field (Contract 7's
+  `re_measurement` block has no free-form notes property;
+  `additionalProperties: false`), and the PENDING-on-RQ-14 status is
+  recorded in `docs/implementation-notes.md`, not silently skipped.

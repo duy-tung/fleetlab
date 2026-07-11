@@ -1,4 +1,4 @@
-.PHONY: test contracts-verify check
+.PHONY: test contracts-verify recommendations-verify check
 
 # Program floor (docs/testing.md): deterministic seeded runs + a green
 # pytest suite.
@@ -13,4 +13,12 @@ contracts-verify:
 	python3 vendor/serving-contracts-v0.2.0/kit/contracts-validate.py \
 		--bundle vendor/serving-contracts-v0.2.0 selftest
 
-check: test contracts-verify
+# FL-T009: fleetlab's own emitted Contract-7 files must kit-validate
+# against the pinned bundle, not just against fleetlab's own jsonschema
+# check (fleetlab/emit/recommendation.py already enforces that at write
+# time; this re-checks with the independent vendored kit CLI).
+recommendations-verify:
+	python3 vendor/serving-contracts-v0.2.0/kit/contracts-validate.py \
+		--bundle vendor/serving-contracts-v0.2.0 check examples/recommendations/
+
+check: test contracts-verify recommendations-verify

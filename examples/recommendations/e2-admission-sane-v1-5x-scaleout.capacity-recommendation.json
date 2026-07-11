@@ -1,0 +1,164 @@
+{
+  "recommendation_id": "rec-2026-07-11-e2-admission-sane-v1-5x-scaleout-001",
+  "created_at": "2026-07-11T00:00:00Z",
+  "producer": {
+    "tool": "fleetlab",
+    "version": "0.1.0"
+  },
+  "inputs": {
+    "benchmark_result_ids": [
+      "ib-t010-e2-baseline-1x-sane",
+      "ib-t010-e2-overload-5x-sane"
+    ],
+    "workload_ref": {
+      "name": "ib-t010-e2-overload",
+      "version": "1.0.0"
+    },
+    "slo_ref": {
+      "id": "ib-t010-e2-baseline",
+      "version": "1.0.0"
+    },
+    "cost_profile_ref": {
+      "id": "cost-g5-xlarge-ondemand",
+      "version": "0.1.0"
+    },
+    "hardware_profile_refs": [
+      {
+        "id": "mock-loopback-cpu-dev"
+      }
+    ],
+    "demand_forecast": {
+      "peak_rps": 189.0362,
+      "basis": "measured: the real declared offered rate of the ib-t010 E2 '5x' overload stress-test workload (not a live production forecast) -- used here as the demand this recommendation is sized for, per this task's explicit instruction"
+    },
+    "model_profile_ref": {
+      "id": "mock-8b"
+    }
+  },
+  "recommended_topology": {
+    "replica_groups": [
+      {
+        "hardware_profile_ref": {
+          "id": "mock-loopback-cpu-dev"
+        },
+        "replica_count": 6,
+        "engine_config": {
+          "engine": {
+            "name": "mock",
+            "version": "dev"
+          },
+          "flags": {}
+        }
+      }
+    ],
+    "change_summary": "scale out 1 -> 6 replicas of gateway-mock-admission-sane-v1 to serve the 189.0362 rps '5x' overload stress-test rate within this profile's fitted capacity",
+    "baseline": "1 replica of gateway-mock-admission-sane-v1 (mock backend (gateway-mediated loopback, local-dev-container, linux/amd64, 4 vCPU, CPU-only) -- NOT real hardware; profiled here for loop-mechanics purposes only, per FL-T004 scope decision. See docs/notes/fitting-method.md.), measured achieving 33.159 rps at 37.8072 rps offered (goodput ratio 0.899, shed_rate 0.101) -- ib-t010-e2-baseline-1x-sane"
+  },
+  "predictions": {
+    "goodput": {
+      "requests_per_second_meeting_slo": {
+        "value": 189.0362,
+        "unit": "requests_per_second",
+        "uncertainty": {
+          "lower": 165.27903753606583,
+          "upper": 189.0362,
+          "method": "point estimate = min(demand, replica_count x fitted capacity_rps), linear-scaling assumption; lower bound applies this profile's own largest documented relative error (0.1257) to the per-replica capacity (fit stderr=1.1053034665893644, G8 holdout |rel_error|=-0.1256752011727604); upper bound is demand-capped since goodput cannot exceed offered load in this closed-form model."
+        }
+      },
+      "at_offered_rps": 189.0362
+    },
+    "latency": {
+      "e2e_duration_seconds_p95": {
+        "value": 0.28591520786285396,
+        "unit": "seconds",
+        "uncertainty": {
+          "lower": 0.16838788986206055,
+          "upper": 0.30917310714721674,
+          "method": "measured-data bracket, NOT a fitted-model prediction: this engine-config's latency_profile.status is PENDING (no training point below its own fitted capacity exists, reports/holdout-validation.md \u00a73) -- value = mean p95 across the baseline (ib-t010-e2-baseline-1x-sane) and overload (ib-t010-e2-overload-5x-sane) benchmark-results' own real pooled e2e_duration_seconds tables; lower = baseline's p50 (0.168s); upper = overload's p95 (0.309s)"
+        }
+      }
+    },
+    "cost": {
+      "usd_per_hour": {
+        "value": 6.036,
+        "unit": "usd_per_hour",
+        "uncertainty": {
+          "lower": 6.036,
+          "upper": 6.036,
+          "method": "deterministic: 6 x on-demand rate from cost-g5-xlarge-ondemand@0.1.0 (source-reported, as of 2026-07-10) -- ILLUSTRATIVE ONLY: the measured hardware this recommendation is actually sized from (mock-loopback-cpu-dev, a local-dev-container) has no real cloud billing; this reuses a real GPU's example on-demand rate purely to satisfy Contract 7's required cost field, same convention as reports/cost-model.md (FL-T008).",
+          "confidence": 0.95
+        }
+      },
+      "usd_per_successful_request": {
+        "value": 8.869553380075703e-06,
+        "unit": "usd_per_successful_request",
+        "uncertainty": {
+          "lower": 8.869553380075703e-06,
+          "upper": 1.0144460493368968e-05,
+          "method": "usd_per_hour divided by the predicted goodput interval, converted to requests/hour"
+        }
+      },
+      "usd_per_million_tokens": {
+        "value": 1.2567062408797436,
+        "unit": "usd_per_million_tokens",
+        "uncertainty": {
+          "lower": 1.2567062408797436,
+          "upper": 1.4373448432040414,
+          "method": "usd_per_hour divided by predicted output-token throughput (goodput x mean output tokens/request); OUTPUT-TOKEN BASIS ONLY -- benchmark-result.schema.json's throughput block has no total (input+output) token-rate field, a schema-coverage gap already recorded in reports/cost-model.md (FL-T008); tokens/request measured from ib-t010-e2-baseline-1x-sane's own throughput block (7.0578 output tokens/request)"
+        }
+      }
+    }
+  },
+  "autoscaling": {
+    "signal": {
+      "source": "gateway",
+      "metric": "inference_queue_depth"
+    },
+    "thresholds": {
+      "scale_out": {
+        "comparator": ">",
+        "value": 1,
+        "for_seconds": 60
+      },
+      "scale_in": {
+        "comparator": "<",
+        "value": 1,
+        "for_seconds": 300
+      }
+    },
+    "bounds": {
+      "min_replicas": 1,
+      "max_replicas": 8
+    },
+    "notes": "FL-T006 (reports/autoscaling-signals.md) recommends predicted_goodput_deficit as primary (paired with queue_depth/in_flight_requests as a fitted-profile-independent fallback), but predicted_goodput_deficit is fleetlab's own derived simulation signal, not a metric the gateway emits -- Contract 7 requires a canonical gateway/engine metric name (Contract 2 vocabulary), so this field names inference_queue_depth (Contract 2 canonical), FL-T006's recommended fallback. Thresholds (queue_depth > 1 to scale out, < 1 to scale in) are a stated, disclosed choice (basis: assumed) reserving 2 of this gateway config's 3-deep admission queue as headroom before scaling, not a fitted or measured figure -- no queue-depth telemetry exists in this program's evidence for this engine-config. FL-T006's own caveat carries over unchanged: queue_depth under-reads true overload once admission control starts shedding rather than queuing, which this gateway config (admission-sane-v1, queue cap 3) does at sustained overload."
+  },
+  "assumptions": [
+    "goodput scales linearly with replica count behind even routing -- no cross-replica imbalance penalty is modeled (unlike the serving-contracts example recommendation's assumed 3% penalty): no multi-replica benchmark exists anywhere in this program's evidence to measure or even assume an imbalance figure from (docs/risks.md FL-L1; docs/implementation-notes.md A7)",
+    "engine config (gateway-mock-admission-sane-v1, queue cap 3), model (mock-8b), and hardware (mock-loopback-cpu-dev) are held exactly at the pins of ib-t010-e2-baseline-1x-sane and ib-t010-e2-overload-5x-sane -- this is the CPU-only mock backend profiled for loop-mechanics purposes only (FL-T004 scope decision), NOT a claim about any real GPU or CPU serving stack",
+    "the 189.0362 rps demand is the E2 '5x' overload workload's own declared offered rate (a stress-test rate), not a measured or forecast production traffic figure",
+    "cost figures reuse cost-g5-xlarge-ondemand's real GPU on-demand rate purely to populate Contract 7's required cost field -- the actual measured hardware (a local-dev-container) has no real cloud billing; NOT a real cost claim (same convention as reports/cost-model.md, FL-T008)",
+    "the latency prediction is a measured-data bracket (baseline/overload benchmark-results' own pooled percentiles), not a fitted-model-based prediction -- this engine-config's queueing-blowup latency model has status PENDING (no training point below its own fitted capacity exists anywhere in evidence)",
+    "the recommended replica count (6) sizes exactly to the stated demand with no N-1 failover margin: at 6 replicas, losing one leaves 165.796 rps of capacity against the 189.0362 rps demand -- a 23.241 rps deficit (see sensitivity_notes)"
+  ],
+  "sensitivity_notes": [
+    "the recommended 6-replica fleet capacity (198.955 rps, point estimate) exceeds the 189.0362 rps demand by only 5.2% -- this is an exactly-sized recommendation, not a comfortably provisioned one; a small negative surprise in per-replica capacity would leave the fleet short",
+    "N-1 failover: with 6 replicas, a single replica failure leaves only 165.796 rps against the 189.0362 rps demand -- a 23.241 rps deficit (headroom_deficit=True per fleetlab.dynamics.headroom's own arithmetic). If N-1 failover margin at this demand is required, provision 7 replicas instead; this recommendation sizes only to the stated demand, per this task's explicit instruction",
+    "this profile's own G8 holdout result (reports/holdout-validation.md \u00a72a) is the dominant source of uncertainty here (12.6% relative error at this exact operating regime -- an offered rate far past the single training point), several times larger than the fit's own statistical stderr (3.3% relative) -- the re_measurement plan below exists specifically to resolve which of this profile's two single-point capacity estimates (33.159 rps baseline-fit vs 37.925 rps overload-empirical) better predicts real multi-replica behavior",
+    "queue_depth (the chosen autoscaling signal) under-reads true overload once this gateway config's admission control starts shedding instead of queuing (FL-T006 caveat, reports/autoscaling-signals.md \u00a77) -- the baseline run's own 10.1% shed_rate at 'normal' load shows this config sheds well before queue_depth would saturate"
+  ],
+  "re_measurement": {
+    "workload_ref": {
+      "name": "ib-t010-e2-overload",
+      "version": "1.0.0",
+      "seed": 10010201
+    },
+    "single_declared_variable": "replica_count 1 -> 6 (engine config gateway-mock-admission-sane-v1, model mock-8b, hardware mock-loopback-cpu-dev, and workload version+seed held at ib-t010-e2-overload-5x-sane's own pins, per the benchmark comparability rule)",
+    "success_criteria": [
+      "pooled achieved_rps >= 165.279 (this recommendation's stated goodput lower bound) at 189.0362 rps offered, evaluated across all 6 replicas",
+      "shed_rate at the recommended topology is materially lower than the single-replica baseline's own shed_rate (10.1%, ib-t010-e2-baseline-1x-sane) -- goodput gained is not bought by shedding alone",
+      "e2e_duration_seconds p95 <= 0.3092s (this recommendation's stated latency upper bound)",
+      "if measured achieved_rps at 6 replicas lands nearer 199.0 rps (linear-scaling prediction from the baseline-fit capacity) or nearer 227.6 rps (linear-scaling from the overload-empirical capacity), this directly answers which of this profile's two single-point capacity estimates better predicts multi-replica behavior -- closing the open root-cause question in docs/notes/fitting-method.md"
+    ]
+  },
+  "notes": "Consumption-side dry-run validation: fleetlab/emit/dry_run_validate.py (run as `python3 -m fleetlab.emit.dry_run_validate --recommendation <this file> --applied-topology <applied.json> --post-change-result <benchmark-result.json>`) checks replica_count applied, goodput vs this recommendation's lower bound, and latency vs its upper bound. STATUS: PENDING-on-RQ-14 -- inferops' runtime environment decision is not yet made, so no real post-change benchmark-result exists yet to run this against; recorded as an honest deferral in docs/implementation-notes.md, not skipped silently. The script is written and tested now (tests/emit/test_dry_run_validate.py) so it is ready to run the moment a real one lands."
+}

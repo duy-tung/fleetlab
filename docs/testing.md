@@ -28,7 +28,7 @@ On every CI run, against the **pinned bundle tag** (recorded in `interfaces.md`)
 
 - Validate accepted inputs against the bundle's golden `examples/` fixtures.
 - Validate every emitted recommendation against `capacity-recommendation.schema.json`.
-- Target: `make contracts-verify` (or equivalent) green in CI. Re-run on every contract release; the v1.0.0 re-run is a prerequisite for I6.
+- Targets: `make contracts-verify` (the bundle's own golden-fixture selftest) and `make recommendations-verify` (kit-validates every file under `examples/recommendations/` against the pinned bundle — FL-T009), both wired into `make check`, green in CI. Re-run on every contract release; the v1.0.0 re-run is a prerequisite for I6.
 
 ## 4. Holdout protocol (G8 — structural, not honor-system)
 

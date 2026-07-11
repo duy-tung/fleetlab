@@ -388,6 +388,70 @@ Running log of notable events: surprises, assumption changes, reduced scope, pre
 - No new dependency added (pure Python + existing `fleetlab.ingest`/
   `fleetlab.dynamics`/`fleetlab.models` reuse).
 
+### 2026-07-11 — FL-T009 recommendation emitter + limitations report
+
+- `fleetlab/emit/{topology,recommendation,build_recommendation,
+  dry_run_validate}.py` + `fleetlab/cli.py` (`fleetlab recommend --results
+  ... --slo ... --cost ...`) implemented; registered as a console script
+  (`pyproject.toml` `[project.scripts]`), reinstalled (`pip install -e .`)
+  and smoke-tested as the real `fleetlab` command, not just as a Python
+  module. 50 tests green (`tests/emit/`), full suite 301/301.
+- **The real recommendation**, per the task's explicit instruction: the
+  FL-T004 E2/E2b overload evidence shows the single mock-backend replica
+  saturating near ~33-38 rps regardless of load; the ib-t010 E2 "5x"
+  overload workload declares a real 189.0362 rps offered rate no single
+  replica can serve. Recommends 6 replicas of `gateway-mock-admission-
+  sane-v1` (fitted capacity 33.159 ± 1.105 rps/replica), goodput 189.036
+  rps with uncertainty [165.279, 189.036] rps. The lower bound is built
+  from this profile's own **published G8 holdout relative error (-12.6%,
+  reports/holdout-validation.md §2a)** — the dominant, real source of
+  uncertainty here, several times larger than the fit's own 3.3%-relative
+  stderr (`fleetlab/emit/topology.py::goodput_uncertainty` takes the larger
+  of the two, never invents a margin). Latency has no fitted model for this
+  engine-config (PENDING, `docs/notes/fitting-method.md` §4); a generic,
+  reusable measured-data bracket helper
+  (`latency_bracket_from_benchmark_results`: value = mean p95, lower = min
+  p50, upper = max p95 across the supplied benchmark-result inputs) is used
+  instead, disclosed as an approximation in `assumptions`, not a fitted
+  prediction.
+- **Autoscaling signal decision, recorded because it required a judgment
+  call not spelled out in the task brief:** FL-T006 recommends
+  `predicted_goodput_deficit` as primary, but that is fleetlab's own
+  derived simulation signal, not a metric a real gateway emits — Contract
+  7 requires a canonical gateway/engine metric name (Contract 2
+  vocabulary). Named `inference_queue_depth` instead (Contract 2 canonical,
+  FL-T006's own recommended fallback), with FL-T006's caveat about
+  admission-controlled shedding carried into `autoscaling.notes` explicitly
+  rather than silently dropped. Thresholds (`queue_depth > 1` scale-out /
+  `< 1` scale-in) are a disclosed, `assumed` operational judgment call — no
+  queue-depth telemetry exists anywhere in evidence for this engine-config
+  to fit one from.
+- **Honest disclosures baked into the recommendation itself** (not just
+  this log): the recommended 6-replica fleet has **no N-1 failover
+  margin** at the stated demand (23.24 rps deficit, computed via
+  `fleetlab.dynamics.headroom`'s own arithmetic inline); the
+  **linear-replica-scaling assumption is itself untested** (no
+  multi-replica benchmark exists anywhere in this program's evidence); the
+  cost prediction's dollar figures reuse the same `cost-g5-xlarge-ondemand`
+  GPU rate card FL-T008 used, for the identical reason (no real billing for
+  a local-dev-container) — same "MODEL DEMONSTRATION"-style disclosure, not
+  a new pattern.
+- **Kit-validated** (not just fleetlab's own `jsonschema` check): `python3
+  vendor/serving-contracts-v0.2.0/kit/contracts-validate.py --bundle
+  vendor/serving-contracts-v0.2.0 validate --schema capacity-recommendation
+  examples/recommendations/e2-admission-sane-v1-5x-scaleout.capacity-recommendation.json`
+  and the directory-level `check` auto-detect mode both PASS.
+- **Limitations report** (`reports/limitations.md`, the mandatory honesty
+  artifact): simulation ≠ production restated concretely against this
+  program's actual evidence; the single-hardware-bucket corpus; the full
+  G8 error-magnitude table across all three fitted configs; the p50-
+  inversion approximation; the unmeasured scale-lag and untested linear-
+  scaling assumption; a consolidated table of every PENDING/`assumed` item
+  accumulated across FL-T001–T009 (not a curated subset); and the
+  PENDING-on-RQ-14 dry-run deferral.
+- No new dependency added (pure Python + `fleetlab.ingest`/`fleetlab.cost`/
+  `fleetlab.dynamics` reuse; `argparse` and `datetime` are stdlib).
+
 ## Assumptions register
 
 | # | Date | Assumption | Reversible? | Revisit when |
@@ -407,6 +471,9 @@ Running log of notable events: surprises, assumption changes, reduced scope, pre
 | A13 | 2026-07-11 | FL-T008 treats "goodput at SLO" as the fitted (p50-only) latency model inverted against a p95-defined SLO objective's threshold value — a stated approximation, not a rigorous p95 prediction (fleetlab has not fitted a p95 latency model) | yes | a p95 (or full-distribution) latency model landing in a future fitting pass |
 | A14 | 2026-07-11 | FL-T007's placement demo pairs the measured CPU hardware bucket with Qwen2.5-1.5B (the real model this program served on a CPU host) rather than the mock engine's own "mock-8b" (which has no real weight size) — a closer real pairing for the memory-fit/fragmentation mechanisms, even though Qwen was never served by the specific mock-loopback engine the fitted capacity came from | yes | a real rate-sweep corpus that measures both capacity and memory on the same real engine |
 | A15 | 2026-07-11 | FL-T007's cold-start-weighting demo borrows FL-T005's `MEASURED_COLD_START` (llama.cpp/Qwen) as a standalone exhibit rather than attributing it to either ranked placement candidate (mock backend or the GPU example), since neither has any cold-start timing in evidence | yes | a real cold-start measurement for the mock backend or a real GPU |
+| A16 | 2026-07-11 | FL-T009's autoscaling signal names `inference_queue_depth` (Contract 2 canonical) rather than FL-T006's primary recommendation `predicted_goodput_deficit`, because the latter is fleetlab's own derived simulation signal, not a metric a real gateway/engine emits, and Contract 7 requires a canonical name | yes | a future contract revision that lets Contract 7 name a fitted-profile-derived signal directly |
+| A17 | 2026-07-11 | FL-T009's recommended replica count (6) and its goodput uncertainty lower bound apply the E2 config's own published G8 holdout relative error (-12.6%) to the per-replica capacity, taking the larger of {fit stderr, holdout error} rather than combining them in quadrature (unlike the ib-t008 sweep config's "combined 1σ" convention in reports/holdout-validation.md §2b) — because the E2 MISS is a documented model-specification limitation, not measurement noise, so quadrature combination (appropriate for independent random errors) would understate it | yes | a two-parameter capacity model that closes the E2/E2b model-specification gap (docs/notes/fitting-method.md §3) |
+| A18 | 2026-07-11 | FL-T009's cost prediction for the real E2 recommendation reuses `cost-g5-xlarge-ondemand`'s real GPU rate (same as FL-T008), and its `usd_per_million_tokens` field uses output-tokens-only (measured from the E2 baseline result's own throughput block, 7.058 tokens/request) because `benchmark-result.schema.json` has no total-token-rate field (the same schema-coverage gap FL-T008 recorded) | yes | a benchmark-result schema revision adding a total-token-rate field |
 
 ## Deviations
 
@@ -509,3 +576,28 @@ Running log of notable events: surprises, assumption changes, reduced scope, pre
   when a second real measured hardware bucket (a real GPU or a second real
   CPU/llama.cpp rate sweep) lands in the corpus. Full account:
   `reports/placement.md`.
+- **2026-07-11 — FL-T009's inferops dry-run stop-condition item is
+  PENDING-on-RQ-14, an honest deferral, not skipped.** Evidence: inferops'
+  runtime environment decision (RQ-14) is unresolved as of this session —
+  no inferops deployment exists to apply this recommendation's topology
+  change or to produce a real post-change `benchmark-result`. Decision:
+  ship the consumption-side validation script now
+  (`fleetlab/emit/dry_run_validate.py`) with its own test suite
+  (`tests/emit/test_dry_run_validate.py`, 10 tests) exercised against a
+  synthetic, clearly-labeled post-change fixture — proving the checking
+  mechanism itself is correct and ready — rather than waiting to write it
+  until real data exists. The real recommendation
+  (`examples/recommendations/e2-admission-sane-v1-5x-scaleout.capacity-recommendation.json`)
+  names this script and its PENDING status explicitly in its own top-level
+  `notes` field (Contract 7's `re_measurement` block itself has no
+  free-form notes property — `additionalProperties: false` — so this is
+  the correct schema-valid place for it). Consequences: FL-T009's stop
+  condition ("inferops dry-run consumes it") is met for everything within
+  fleetlab's control (schema-valid emission, kit-validated, a ready
+  consumption-side checker) but the actual dry-run execution itself cannot
+  happen yet — recorded here rather than silently reported as done.
+  Reversible/no scope change: nothing about Contract 7 or fleetlab's own
+  deliverables changed; this is purely an upstream (inferops) blocker.
+  Follow-up: closes when inferops' RQ-14 environment decision lands and a
+  real post-change benchmark-result becomes available to run
+  `fleetlab/emit/dry_run_validate.py` against.
