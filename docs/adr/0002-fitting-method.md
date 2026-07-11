@@ -1,6 +1,6 @@
 # ADR-0002 — Fitting method (FL-T004)
 
-- **Status:** Accepted (G8 human review point — see `reports/holdout-validation.md`)
+- **Status:** Proposed — pending G8 human review (see `reports/holdout-validation.md`; this is the mandatory human-review gate, not yet exercised by a human reviewer as of this commit)
 - **Date:** 2026-07-11
 - **Deciders:** fleetlab implementer + user (G8 review)
 
