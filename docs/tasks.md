@@ -126,6 +126,31 @@ Execution order: FL-T002 → FL-T003 → FL-T004 (G8 review) → {FL-T005, FL-T0
 - **Evidence:** scenario outputs committed with seeds and input digests.
 - **Integration impact:** feeds the autoscaling comparison (FL-T006) and cold-start-headroom report.
 - **Stop condition:** scenarios reviewed.
+- **Status (2026-07-11): DONE.** `fleetlab/dynamics/{simulator,cold_start,
+  scaling,headroom,build_scenarios}.py` implemented; 32 tests green
+  (`tests/dynamics/`), full suite 159/159. Discrete-event core (ADR-0001)
+  validated against five independent analytic limits (deterministic drain
+  time, M/M/1 mean-wait formula, λ>μ linear growth, M/M/c Erlang-C at low
+  utilization, burst decay back to baseline) — see `docs/notes/dynamics-
+  method.md` §1. Cold-start delay is **measured**: llama.cpp model-load
+  timing extracted directly from `inference-lab/evidence/i3/logs/llama-
+  server-*.log` (warm regime 1.94s mean of 6 runs; cold/page-cache-evicted
+  regime 91.34s mean of 2 runs — the log's undocumented `MM.SS.mmm.uuu`
+  timestamp format was reverse-engineered and independently cross-checked
+  this session, `docs/notes/dynamics-method.md` §2). Scale-up/down lag is
+  **assumed**, explicitly flagged (`basis="assumed"`) — a full-corpus search
+  found zero scale-up/replica/autoscaling data anywhere in the available
+  evidence; closes when inferops IO-T009 produces real data. Failover
+  headroom / N-1 failure-capacity analysis (`fleetlab/dynamics/headroom.py`)
+  combines FL-T004's fitted capacity with replica counts: the real measured
+  (mock-backend) capacity shows **no headroom deficit** against the
+  `bursty` workload's peak rate (an honest negative result); an explicitly-
+  labeled illustrative/assumed lower capacity demonstrates the mechanism
+  binding, showing an 8.5x warm-vs-cold reload difference in cold-start
+  window produces the same 8.5x difference in accrued backlog and drain
+  time — direct support for planning-prompt hypothesis 3. Full report:
+  `reports/cold-start-headroom.md`; seeded scenario outputs with input
+  digests: `reports/scenarios/{bursty-queue-growth,cold-start-headroom}.json`.
 
 ## FL-T006 — Autoscaling signal comparison
 - **Goal/Repo:** compare scaling signals in fleetlab simulation.

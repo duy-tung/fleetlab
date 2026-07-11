@@ -1,0 +1,29 @@
+{
+  "scenario": "bursty-queue-growth",
+  "seed": 20260711,
+  "input_workload_file": "tests/golden/fixtures/real/workloads/bursty.json",
+  "input_workload_sha256": "378c3e82faccda26325d63fb0c0cc386499870ea89025bac0e73237f6a39cd71",
+  "workload_description": "Queueing/admission probe: piecewise-constant open-loop rate - 60 s base at 2 rps, then a 15 s burst at 20 rps (10x amplitude), repeating every 75 s for eight cycles. Arrivals stay open-loop within each phase, so queue growth during bursts is fully visible (no coordinated omission). Exercises admission control, shedding, and Retry-After behavior at the gateway. Chat-like lengths, output capped at 512 tokens. Canonical suite v1 (IB-T003).",
+  "long_run_average_offered_rps": 5.6,
+  "scenarios": {
+    "provisioned_mu8": {
+      "service_rate_rps": 8.0,
+      "n_requests": 3378,
+      "max_in_system": 192,
+      "mean_wait_seconds_admitted": 9.262375562395084,
+      "in_system_at_t300s": 165,
+      "in_system_at_t590s": 53,
+      "stable": true
+    },
+    "underprovisioned_mu3": {
+      "service_rate_rps": 3.0,
+      "n_requests": 3378,
+      "max_in_system": 1639,
+      "mean_wait_seconds_admitted": 259.2116297796739,
+      "in_system_at_t300s": 847,
+      "in_system_at_t590s": 1463,
+      "stable": false
+    }
+  },
+  "note": "provisioned_mu8: long-run average offered rate (5.6 rps) < service rate (8 rps) -- system is stable overall; the burst phase alone briefly exceeds capacity but the queue drains within each 60s baseline window (see tests/dynamics/test_simulator.py::test_burst_decay_back_to_steady_state_after_the_burst_ends). underprovisioned_mu3: service rate (3 rps) below the long-run average offered rate (5.6 rps) -- unstable, in-system count ratchets upward cycle over cycle with no recovery."
+}

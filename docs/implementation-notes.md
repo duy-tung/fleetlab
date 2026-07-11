@@ -173,6 +173,58 @@ Running log of notable events: surprises, assumption changes, reduced scope, pre
   KV-cache measurement exists anywhere in the evidence; re-checked, nothing
   new surfaced this session).
 
+### 2026-07-11 — FL-T005 dynamics: queue growth, cold start, scaling, headroom
+
+- **Discrete-event core** (`fleetlab/dynamics/simulator.py`, ADR-0001's
+  small in-repo FCFS `G/G/c` simulator) validated against five analytic
+  limits: deterministic drain time (no RNG), M/M/1 mean-wait formula
+  (λ<μ), λ>μ linear queue growth, M/M/c Erlang-C at low utilization, and
+  burst decay back to baseline for a `bursty`-shaped provisioned scenario.
+  32 tests green (`tests/dynamics/`), full suite 159/159.
+- **Cold-start delay: measured, not assumed.** Extracted directly from
+  `inference-lab/evidence/i3/logs/llama-server-*.log`'s own
+  `load_model: loading model` / `llama_server: model loaded` timestamp
+  pair, across all 8 real server-process logs in that evidence set: warm
+  regime (OS page cache holds the weights) 1.94s mean of 6 runs; cold
+  regime (page cache evicted) 91.34s mean of 2 runs — a ~47x gap,
+  disk-read-bound, not engine/GPU variance. **The log's own elapsed-time
+  format was undocumented** and had to be reverse-engineered this session:
+  `MM.SS.mmm.uuu` (minutes uncapped rather than rolling to an hours field).
+  Verified by an independent cross-check: the `chat-short-cpu-gw` run's
+  real wall-clock span (its first and last `events.jsonl` timestamps, ~600-
+  610s) against that same run's log's own final line (`10.09.254.080` =
+  609.25s under this format) — matches. All 8 per-log deltas were then
+  recomputed programmatically (not by eye) to confirm. Full derivation:
+  `fleetlab/dynamics/cold_start.py`, `docs/notes/dynamics-method.md` §2.
+- **Scale-up/down lag: no measured basis exists anywhere in the available
+  evidence** — a full-corpus grep (`scale up`, `scale-up`, `replica`,
+  `cooldown`, `autoscal*`) across `ib-t010`/`ib-t004`/`ib-t005`/`i3` found
+  zero matches; every run in evidence is a single engine process, never a
+  multi-replica fleet. `ASSUMED_SCALING_DELAY` (`fleetlab/dynamics/
+  scaling.py`) is explicitly `basis="assumed"`: 10s assumed pod-scheduling
+  constant + the measured warm-load time for scale-up (11.94s total); 30s
+  assumed graceful-drain/termination-grace for scale-down. Flagged, not
+  presented as measured; closes when inferops IO-T009 lands.
+- **Failover headroom (N-1 failure capacity):** combined FL-T004's fitted
+  mock-backend capacity (33.16 rps/replica) with 2 replicas against the real
+  `bursty` workload's 20 rps peak — **no headroom deficit** (an honest
+  negative result: the hypothesis that cold-start headroom dominates isn't
+  automatically true; it depends on the actual capacity/peak-load ratio,
+  favorable here). A second, explicitly `ASSUMED`/illustrative scenario
+  (15 rps/replica, deliberately below the peak, clearly labeled as not a
+  measured value) demonstrates the mechanism when it *does* bind: warm vs
+  cold reload changes the cold-start window by 8.5x with steady-state
+  capacity and offered load held completely fixed, and the resulting
+  backlog/drain-time scale by the identical 8.5x — direct mechanistic
+  support for planning-prompt hypothesis 3 ("required headroom is set by
+  warm-up time x arrival growth rate, not steady-state throughput"). Full
+  report: `reports/cold-start-headroom.md` (one of the five required
+  reports); raw seeded outputs with input digests: `reports/scenarios/
+  {bursty-queue-growth,cold-start-headroom}.json`.
+- No `scipy`/`SimPy` added: the DES core needed only `numpy` (seeded
+  exponential sampling) + Python's `heapq`, consistent with ADR-0001's
+  "small owned discrete-event core, not a framework" decision.
+
 ## Assumptions register
 
 | # | Date | Assumption | Reversible? | Revisit when |
@@ -183,6 +235,8 @@ Running log of notable events: surprises, assumption changes, reduced scope, pre
 | A4 | 2026-07-11 | KV-cache dtype for the Qwen2.5-1.5B profile is `assumed` (llama.cpp fp16 default), not measured — no run in evidence overrides `--cache-type-k/v` or logs the active KV dtype | yes | a run manifest/log that states the KV dtype explicitly, or a measured KV-memory metric |
 | A5 | 2026-07-11 | Fitted capacity/latency profiles model the **mock backend** only (labeled honestly as loop-mechanics, not real hardware) — the only engine-configs in evidence with >1 offered-rate point are both mock-backend gateway configs | yes | a real multi-point rate sweep on llama.cpp or a GPU engine |
 | A6 | 2026-07-11 | Published fitted profile per config trains on the "1x" baseline point and holds out the "5x" overload point (not the reverse) — the natural "does normal-load calibration predict a burst" direction; the reverse direction is computed and reported too, but not persisted as canonical | yes | if a 3rd data point ever justifies a different split policy |
+| A7 | 2026-07-11 | Scale-up lag = assumed 10s Kubernetes pod-scheduling constant + measured warm model-load time; scale-down lag = assumed 30s graceful-drain/termination-grace constant — no measured basis for either assumed term exists in this program's evidence yet | yes | inferops IO-T009 real replica-scaling timing data |
+| A8 | 2026-07-11 | `simulate_queue`'s `capacity` parameter bounds total in-system count (waiting + in service), not queue-only depth — a modeling simplification, documented in `fleetlab/dynamics/simulator.py`'s docstring rather than modeling real gateways' separate queue-depth-cap / concurrency-cap knobs | yes | if a scenario specifically needs the two caps to be independent |
 
 ## Deviations
 

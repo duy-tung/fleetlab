@@ -1,0 +1,48 @@
+{
+  "scenario": "cold-start-headroom",
+  "seed": null,
+  "input_workload_file": "tests/golden/fixtures/real/workloads/bursty.json",
+  "input_workload_sha256": "378c3e82faccda26325d63fb0c0cc386499870ea89025bac0e73237f6a39cd71",
+  "input_fitted_profile_file": "profiles/fitted/mock-loopback-cpu-dev__mock-8b__gateway-mock-admission-sane-v1.json",
+  "input_fitted_profile_sha256": "33417ba7400e0758bd116fb77792a1c0698b6c555f23531eafbc3990875bd67d",
+  "measured_cold_start": {
+    "warm_load_seconds": 1.9372963333333335,
+    "cold_load_seconds": 91.34080499999999,
+    "basis": "measured",
+    "source": "inference-lab/evidence/i3/logs/llama-server-{calib,direct,gw,failover-1,failover-2}.log + attempt1-cancel/llama-server-cancel.log (warm regime, OS page cache holds the weights); inference-lab/evidence/i3/logs/llama-server-cancel.log (final) + llama-server-sharedprefix.log (cold regime, page cache evicted); llama.cpp commit 8f114a9, qwen2.5-1.5b-instruct-q4_k_m.gguf, same 4-vCPU CPU-only host throughout"
+  },
+  "assumed_scaling_delay": {
+    "scale_up_seconds": 11.937296333333334,
+    "scale_down_seconds": 30.0,
+    "basis": "assumed"
+  },
+  "real_measured_capacity_scenario": {
+    "basis": "measured (mock backend, loop-mechanics labeling per FL-T004)",
+    "per_replica_capacity_rps": 33.15910399768093,
+    "replica_count": 2,
+    "n_minus_1_capacity_rps": 33.15910399768093,
+    "bursty_peak_offered_rps": 20,
+    "deficit_rps": 0.0,
+    "finding": "no headroom deficit: N-1 capacity (33.16 rps) already exceeds the bursty workload's peak (20 rps) -- losing one of two replicas is not a cold-start risk for this specific (measured mock capacity, this workload) pairing."
+  },
+  "illustrative_assumed_capacity_scenario": {
+    "basis": "ASSUMED (illustrative only, chosen below the bursty peak to demonstrate the mechanism -- NOT a measured capacity)",
+    "per_replica_capacity_rps": 15.0,
+    "replica_count": 2,
+    "n_minus_1_capacity_rps": 15.0,
+    "bursty_peak_offered_rps": 20,
+    "warm_replacement": {
+      "cold_start_seconds": 11.937296333333334,
+      "deficit_rps": 5.0,
+      "backlog_requests": 59.68648166666667,
+      "drain_time_seconds": 5.968648166666667
+    },
+    "cold_replacement": {
+      "cold_start_seconds": 101.34080499999999,
+      "deficit_rps": 5.0,
+      "backlog_requests": 506.70402499999994,
+      "drain_time_seconds": 50.670402499999994
+    },
+    "finding": "warm vs cold replacement changes the cold-start window by 8.5x (11.9s vs 101.3s) with steady-state capacity and offered load held fixed -- the resulting backlog and drain time scale by the same 8.5x (59.7 vs 506.7 requests; 6.0s vs 50.7s to drain) -- direct support for planning-prompt hypothesis 3: cold-start headroom is set by warm-up time x deficit rate, not steady-state throughput."
+  }
+}
