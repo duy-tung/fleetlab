@@ -180,6 +180,38 @@ Execution order: FL-T002 → FL-T003 → FL-T004 (G8 review) → {FL-T005, FL-T0
 - **Evidence:** autoscaling policy report (one of the five required reports).
 - **Integration impact:** informs inferops IO-T009 (HPA experiment compares cluster behavior against these predictions); I6.
 - **Stop condition:** report published.
+- **Status (2026-07-11): DONE.** `fleetlab/signals/{ground_truth,series,
+  detection,build_signal_comparison}.py` implemented; 29 tests green
+  (`tests/signals/`), full suite 215/215. Ground truth: the FL-T004 fitted
+  profile whose G8 outcome is within stated error
+  (`gateway-mock-flags-v1-conncap2`, capacity 26.157 rps, 2 concurrency
+  slots) — `load_ground_truth_system` structurally refuses a MISS or
+  latency-PENDING profile. Four seeded scenarios: `chat-short`, `mixed`
+  (real workloads, steady load — zero flapping across all six signals in
+  both), `bursty` (real IB-T003 fixture — burst peak 76.5% of capacity, no
+  true overload), `bursty-illustrative-severe` (**basis: assumed** — the
+  real cycle's own phases re-derived programmatically with only the burst
+  rate amplified 1.6x to exceed capacity, since the real corpus has no
+  scenario that breaches this system's fitted capacity). Findings: (1)
+  applying the required uniform 3-sigma tuning rule to
+  cpu/gpu-utilization produces an **unreachable threshold (>1.0)** in 3 of
+  4 scenarios, because a 2-slot system's busy-fraction reading is
+  discretized rather than continuous; (2) utilization's burst-phase
+  reading already hits p95=max=1.0 at 76.5%-of-capacity load (zero true
+  overload), while `predicted_goodput_deficit` correctly stays exactly
+  zero throughout; (3) under genuine overload every signal detects every
+  occurrence (0 misses), but `predicted_goodput_deficit` is
+  systematically slower (12-13s vs the 5s debounce floor for the
+  instantaneous signals) — an exactly-attributable cost of its windowed,
+  capacity-anchored specificity. Recommendation: `predicted_goodput_deficit`
+  primary (paired with `queue_depth`/`in_flight_requests` as a
+  fitted-profile-independent fallback), utilization secondary/diagnostic
+  only. Full report: `reports/autoscaling-signals.md`; design rationale:
+  `docs/adr/0003-signal-comparison-design.md`; seeded scenario JSON:
+  `reports/scenarios/autoscaling-signals.json`. **Filename deviation**:
+  published as `reports/autoscaling-signals.md` (not this task's original
+  `reports/autoscaling-signal-comparison.md`) per the dispatching session's
+  explicit instruction — recorded in `docs/implementation-notes.md`.
 
 ## FL-T007 — Heterogeneous placement
 - **Goal/Repo:** placement recommendations across GPU types in fleetlab.
@@ -202,6 +234,40 @@ Execution order: FL-T002 → FL-T003 → FL-T004 (G8 review) → {FL-T005, FL-T0
 - **Evidence:** cost report (one of the five required reports).
 - **Integration impact:** I6 recommendation quality (cost is a recommendation field).
 - **Stop condition:** report published.
+- **Status (2026-07-11): DONE — MODEL DEMONSTRATION, explicitly labeled.**
+  `fleetlab/cost/{model,build_cost_report}.py` implemented; 18 tests green
+  (`tests/cost/`), full suite 215/215. `model.py` is parameterized and
+  hardware-agnostic (no specific price or hardware baked in); the demo
+  wiring combines the FL-T004 fitted, G8-within-error capacity/latency
+  profile (a measured CPU-only mock backend) with
+  `profiles/examples/cost-g5-xlarge-ondemand.json` (a real A10G GPU's
+  example pricing) purely to demonstrate the mechanism — every artifact
+  states this is a hardware/config mismatch, not a real cost claim.
+  Tokens-per-request (59.21, 48.57 in + 10.63 out) is **measured** from the
+  same ib-t008 sweep corpus the capacity profile was fitted from. Recompute
+  check: every real benchmark-result in this repo's corpus carries
+  `cost: null` (checked, all 10 result files); the one file with a
+  populated cost block is a vendor illustrative example
+  (`vendor/.../examples/benchmark/result.json`) — recomputed
+  `per_million_output_tokens_usd` against it within -0.33%;
+  `per_million_tokens_usd` (total-token basis) is not independently
+  recomputable from that file (a schema-coverage gap: no total-token-rate
+  field in `benchmark-result.schema.json`'s throughput block), recorded
+  rather than backed into. Sensitivity (60-point deterministic sweep,
+  price x SLO x load): a 4x price range produces exactly a 4x cost range;
+  tightening the SLO toward the fitted `l0` produces a ~21x cost range —
+  direct, quantified support for `docs/experiments.md` hypothesis 4 (cost
+  is most sensitive to goodput near the saturation knee, not to raw
+  price), asserted as a test invariant, not just read off a table. No new
+  dependency added (pure closed-form arithmetic). Full report:
+  `reports/cost-model.md`; seeded (parameterless — no RNG) output:
+  `reports/scenarios/cost-model.json`. **Filename/path deviations**:
+  published as `reports/cost-model.md` (not this task's original
+  `reports/cost-capacity-model.md`), and `profiles/cost/` holds a
+  pointer README rather than a duplicate cost-profile file (reuses
+  `profiles/examples/cost-g5-xlarge-ondemand.json` in place) — both per
+  the dispatching session's explicit instruction/decision, recorded in
+  `docs/implementation-notes.md`.
 
 ## FL-T009 — Recommendation emitter + limitations report
 - **Goal/Repo:** close the loop artifact in fleetlab.

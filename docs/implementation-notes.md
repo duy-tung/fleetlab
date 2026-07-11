@@ -272,6 +272,73 @@ Running log of notable events: surprises, assumption changes, reduced scope, pre
 - 9 new tests; full suite 168/168 green. Third fitted profile:
   `profiles/fitted/mock-loopback-cpu-dev__mock-8b__gateway-mock-flags-v1-conncap2.json`.
 
+### 2026-07-11 — FL-T006 autoscaling-signal comparison, then FL-T008 cost model
+
+- **FL-T006.** `fleetlab/signals/{ground_truth,series,detection,
+  build_signal_comparison}.py`; 29 tests (`tests/signals/`), full suite
+  215/215 after FL-T008. Ground truth is deliberately the FL-T004 fitted
+  profile whose G8 outcome is **within stated error**
+  (`gateway-mock-flags-v1-conncap2`), never the two-point `admission-sane`
+  MISS profiles — `load_ground_truth_system` refuses the latter
+  structurally. `docs/adr/0003-signal-comparison-design.md` records the
+  fairness protocol (ADR-0001's planned follow-up).
+- Two bugs caught and fixed during this session, before either was allowed
+  into a committed artifact: (1) `detect_events` originally back-dated
+  `trigger_time` to the *start* of the qualifying debounce run rather than
+  the confirming instant, which understated detection lag by exactly the
+  debounce duration for every signal identically — fixed to report the
+  realistic decision instant; (2) the first draft of
+  `bursty-illustrative-severe` hand-invented a 4-phase/1800s cycle that did
+  not match the real `bursty.json` fixture actually used elsewhere in this
+  repo (60s@2rps + 15s@20rps repeating over 600s, `tests/golden/fixtures/
+  real/workloads/bursty.json`, the same file `fleetlab/dynamics/
+  build_scenarios.py` already reads) — caught by inspecting the actual
+  generated phase list rather than trusting the docstring, and fixed to
+  re-derive the illustrative cycle programmatically from the real file
+  (amplifying only the burst-rate phase) so it cannot silently drift from
+  what it claims to be amplifying.
+- Findings (full account: `reports/autoscaling-signals.md`): the required
+  uniform 3-sigma tuning rule produces an **unreachable threshold (>1.0)**
+  for cpu/gpu-utilization in 3 of 4 scenarios (a 2-concurrency-slot
+  system's busy-fraction reading is discretized to {0, 0.5, 1.0}, giving it
+  disproportionate variance for its mean); utilization's burst-phase
+  reading already pins at p95=max=1.0 during a 76.5%-of-capacity load with
+  zero true overload, while `predicted_goodput_deficit` stays exactly zero
+  throughout; under genuine (illustrative, amplified) overload every signal
+  detects every occurrence with 0 misses, but `predicted_goodput_deficit`
+  is systematically slower (12-13s vs. the 5s debounce floor) — an
+  exactly-quantified cost of its capacity-anchored specificity. Published
+  as `reports/autoscaling-signals.md` (filename deviation from this task's
+  original `reports/autoscaling-signal-comparison.md`, per the dispatching
+  session's explicit corrected instruction).
+- **FL-T008.** `fleetlab/cost/{model,build_cost_report}.py`; 18 tests
+  (`tests/cost/`), full suite 215/215. `model.py` is parameterized and
+  hardware-agnostic; the demonstration run combines the same FL-T004
+  fitted (G8-within-error) profile with `profiles/examples/
+  cost-g5-xlarge-ondemand.json` (a real A10G GPU's example pricing) —
+  explicitly labeled a hardware/config mismatch ("MODEL DEMONSTRATION") in
+  every artifact, never a real cost claim. Tokens-per-request (59.21) is
+  **measured** from the same ib-t008 sweep corpus the capacity profile was
+  fitted from, not assumed. Recompute check: every real benchmark-result
+  in this repo's corpus carries `cost: null` (checked directly, all 10
+  result files); recomputed `per_million_output_tokens_usd` against the
+  one vendor illustrative example with a populated cost block, within
+  -0.33%; `per_million_tokens_usd` (total-token basis) is not
+  independently recomputable from that file (`benchmark-result.schema.
+  json`'s throughput block has no total-token-rate field — a schema-
+  coverage gap, recorded rather than backed into with an assumed input-
+  token rate). Sensitivity sweep (60 points, price x SLO x load, pure
+  closed-form, no RNG): a 4x price range gives exactly a 4x cost range;
+  tightening the SLO toward the fitted `l0` gives a ~21x cost range —
+  quantified support for `docs/experiments.md` hypothesis 4, asserted as a
+  test invariant. Published as `reports/cost-model.md` (filename
+  deviation from this task's original `reports/cost-capacity-model.md`);
+  `profiles/cost/README.md` documents reusing `profiles/examples/
+  cost-g5-xlarge-ondemand.json` in place rather than duplicating it — both
+  per the dispatching session's explicit instruction.
+- Both tasks: no new dependency added (pure `numpy` + existing `fleetlab.
+  ingest`/`fleetlab.dynamics`/`fleetlab.fitting` reuse).
+
 ## Assumptions register
 
 | # | Date | Assumption | Reversible? | Revisit when |
@@ -284,6 +351,11 @@ Running log of notable events: surprises, assumption changes, reduced scope, pre
 | A6 | 2026-07-11 | Published fitted profile per config trains on the "1x" baseline point and holds out the "5x" overload point (not the reverse) — the natural "does normal-load calibration predict a burst" direction; the reverse direction is computed and reported too, but not persisted as canonical | yes | if a 3rd data point ever justifies a different split policy |
 | A7 | 2026-07-11 | Scale-up lag = assumed 10s Kubernetes pod-scheduling constant + measured warm model-load time; scale-down lag = assumed 30s graceful-drain/termination-grace constant — no measured basis for either assumed term exists in this program's evidence yet | yes | inferops IO-T009 real replica-scaling timing data |
 | A8 | 2026-07-11 | `simulate_queue`'s `capacity` parameter bounds total in-system count (waiting + in service), not queue-only depth — a modeling simplification, documented in `fleetlab/dynamics/simulator.py`'s docstring rather than modeling real gateways' separate queue-depth-cap / concurrency-cap knobs | yes | if a scenario specifically needs the two caps to be independent |
+| A9 | 2026-07-11 | FL-T006's ground-truth per-slot service time is derived as `num_servers / capacity_rps` (from the fitted capacity), NOT from the fitted `l0_seconds` latency parameter — avoids compounding `l0`'s own documented multiplicative-vs-additive functional-form misfit into a second task | yes | if the FL-T004 latency model is upgraded to the additive two-parameter form (ADR-0002 addendum) |
+| A10 | 2026-07-11 | FL-T006's `cpu_utilization` and `gpu_utilization` are the identical simulated busy-concurrency-slot-fraction proxy — fleetlab's corpus has no separate CPU/GPU occupancy telemetry to differentiate them | yes | real per-device utilization telemetry becoming available in the corpus (would require a real GPU or CPU-metrics-instrumented run, out of scope for fleetlab itself to generate) |
+| A11 | 2026-07-11 | FL-T006's `bursty-illustrative-severe` scenario amplifies only the real `bursty.json` fixture's burst-rate phase by a fixed, disclosed 1.6x multiplier (20→32 rps) — chosen as the smallest round multiplier that clears the fitted capacity (26.16 rps) by a comfortable margin, not tuned to produce a particular result | yes | a real multi-replica overload dataset from inferops IO-T009 |
+| A12 | 2026-07-11 | FL-T008's cost-model demonstration prices the FL-T004 fitted (CPU-only mock backend) capacity/latency profile against `cost-g5-xlarge-ondemand.json`'s real-GPU rates — a stated hardware/config mismatch, used only to demonstrate the cost-model mechanism | yes | a real GPU cost profile paired with a real GPU-measured capacity/latency profile (blocked on IB-T011 GPU corpus, budget-gated per the program plan) |
+| A13 | 2026-07-11 | FL-T008 treats "goodput at SLO" as the fitted (p50-only) latency model inverted against a p95-defined SLO objective's threshold value — a stated approximation, not a rigorous p95 prediction (fleetlab has not fitted a p95 latency model) | yes | a p95 (or full-distribution) latency model landing in a future fitting pass |
 
 ## Deviations
 
@@ -350,3 +422,22 @@ Running log of notable events: surprises, assumption changes, reduced scope, pre
   Consequences: none — `docs/adr/0002-fitting-method.md` records this as
   the accepted decision, with a stated revisit trigger (a genuine
   multi-point rate sweep landing for any engine-config).
+- **2026-07-11 — FL-T006/FL-T008 report filenames and FL-T008's cost-profile
+  path differ from the planning prompt's original names.** Evidence: the
+  dispatching session's corrected instruction set explicitly named
+  `reports/autoscaling-signals.md` (not the planning prompt's
+  `reports/autoscaling-signal-comparison.md`) and `reports/cost-model.md`
+  (not `reports/cost-capacity-model.md`), and did not ask for a duplicate
+  cost-profile file under `profiles/cost/`. Decision: followed the more
+  recent, explicit dispatch instruction over the earlier planning-prompt
+  filenames (both name the same deliverable; this is a naming choice, not a
+  scope change), and put a pointer `profiles/cost/README.md` in place of a
+  duplicated `profiles/cost/*.json` copy of `profiles/examples/
+  cost-g5-xlarge-ondemand.json` (avoiding two copies of the same
+  provenance-carrying price data, consistent with the program's
+  never-duplicate-state posture). Consequences: none to public contracts,
+  ownership, or milestone scope — `docs/tasks.md`'s FL-T006/FL-T008 status
+  entries record the actual paths used and cross-reference this entry; a
+  future reader searching for the planning prompt's original filenames
+  will find this note. Reversible: yes, a rename is a one-line change if a
+  future review prefers the original names.
