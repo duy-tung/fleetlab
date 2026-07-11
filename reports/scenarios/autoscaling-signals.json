@@ -1,0 +1,1301 @@
+{
+  "generated_by": "python3 -m fleetlab.signals.build_signal_comparison",
+  "fairness_protocol": {
+    "dt_seconds": 1.0,
+    "window_seconds": 10.0,
+    "debounce_seconds": 5.0,
+    "threshold_k": 3.0,
+    "clear_fraction": 0.7,
+    "detection_horizon_seconds": 30.0,
+    "note": "Every parameter above is identical across all six signals and all four scenarios; only the tuned threshold VALUE differs per signal, from that signal's own calibration-window statistics. See docs/adr/0003-signal-comparison-design.md."
+  },
+  "ground_truth_system": {
+    "profile_id": "mock-loopback-cpu-dev__mock-8b__gateway-mock-flags-v1-conncap2",
+    "profile_path": "profiles/fitted/mock-loopback-cpu-dev__mock-8b__gateway-mock-flags-v1-conncap2.json",
+    "profile_sha256": "8a1609618c256a4b24f8536438b6c98978c12886aa4c24fdbdaae3e5179fc8fa",
+    "capacity_rps": 26.15722104139299,
+    "capacity_rps_stderr": 1.2330632250242952,
+    "num_servers": 2,
+    "mean_service_time_seconds": 0.07646072175767686,
+    "basis": "measured",
+    "concurrency_cap_note": "client-transport MaxConnsPerHost, held fixed across the probe and every point: the mock/gateway pair has no admission control of its own at the pinned build (docs/implementation-notes.md), so this models the target's effective capacity for the purpose of this verification sweep. Go's http.Transport blocks (queues) requests past this cap instead of failing them, producing genuine client-visible queueing delay that counts against latency via the scheduled-send basis (ADR-0001).",
+    "service_time_derivation": "mean_service_time_seconds = num_servers / capacity_rps (the fitted throughput ceiling under the disclosed concurrency cap, NOT the fitted l0_seconds latency parameter -- see fleetlab/signals/ground_truth.py docstring)."
+  },
+  "scenarios": [
+    {
+      "scenario": "chat-short",
+      "basis": "measured",
+      "note": "Steady 8 rps for the full 600s run -- the 'must stay quiet under sustained load' baseline.",
+      "seed": 20260711,
+      "n_requests": 4843,
+      "duration_seconds": 600.0,
+      "calibration_window": [
+        0.0,
+        200.0
+      ],
+      "source_workload_file": "tests/golden/fixtures/real/workloads/chat-short.json",
+      "source_workload_sha256": "8dc71fa3857e3b9acf06ebbe118684d99f3ed40ebe4ce790cc951bf559c71b0d",
+      "signals": {
+        "cpu_utilization": {
+          "threshold_tuning": {
+            "baseline_mean": 0.315,
+            "baseline_std": 0.3616282621698697,
+            "k": 3.0,
+            "threshold": 1.3998847865096091,
+            "degenerate_baseline": false
+          },
+          "n_events": 0,
+          "events": [],
+          "flapping_count_in_quiet_windows": 0,
+          "n_quiet_samples_seconds": 400.0,
+          "true_overload_windows": [],
+          "detection_lags_seconds": [],
+          "detection_misses": 0,
+          "stats_by_declared_rate": {
+            "8.0": {
+              "n_samples": 600,
+              "mean": 0.30416666666666664,
+              "p95": 1.0,
+              "max": 1.0
+            }
+          }
+        },
+        "gpu_utilization": {
+          "threshold_tuning": {
+            "baseline_mean": 0.315,
+            "baseline_std": 0.3616282621698697,
+            "k": 3.0,
+            "threshold": 1.3998847865096091,
+            "degenerate_baseline": false
+          },
+          "n_events": 0,
+          "events": [],
+          "flapping_count_in_quiet_windows": 0,
+          "n_quiet_samples_seconds": 400.0,
+          "true_overload_windows": [],
+          "detection_lags_seconds": [],
+          "detection_misses": 0,
+          "stats_by_declared_rate": {
+            "8.0": {
+              "n_samples": 600,
+              "mean": 0.30416666666666664,
+              "p95": 1.0,
+              "max": 1.0
+            }
+          }
+        },
+        "queue_depth": {
+          "threshold_tuning": {
+            "baseline_mean": 0.06,
+            "baseline_std": 0.25768197453450253,
+            "k": 3.0,
+            "threshold": 0.8330459236035077,
+            "degenerate_baseline": false
+          },
+          "n_events": 0,
+          "events": [],
+          "flapping_count_in_quiet_windows": 0,
+          "n_quiet_samples_seconds": 400.0,
+          "true_overload_windows": [],
+          "detection_lags_seconds": [],
+          "detection_misses": 0,
+          "stats_by_declared_rate": {
+            "8.0": {
+              "n_samples": 600,
+              "mean": 0.051666666666666666,
+              "p95": 0.0,
+              "max": 2.0
+            }
+          }
+        },
+        "in_flight_requests": {
+          "threshold_tuning": {
+            "baseline_mean": 0.69,
+            "baseline_std": 0.8682741502543998,
+            "k": 3.0,
+            "threshold": 3.2948224507631996,
+            "degenerate_baseline": false
+          },
+          "n_events": 0,
+          "events": [],
+          "flapping_count_in_quiet_windows": 0,
+          "n_quiet_samples_seconds": 400.0,
+          "true_overload_windows": [],
+          "detection_lags_seconds": [],
+          "detection_misses": 0,
+          "stats_by_declared_rate": {
+            "8.0": {
+              "n_samples": 600,
+              "mean": 0.66,
+              "p95": 2.0,
+              "max": 4.0
+            }
+          }
+        },
+        "token_arrival_rate": {
+          "threshold_tuning": {
+            "baseline_mean": 2729.538987216471,
+            "baseline_std": 503.2435715904141,
+            "k": 3.0,
+            "threshold": 4239.269701987713,
+            "degenerate_baseline": false
+          },
+          "n_events": 0,
+          "events": [],
+          "flapping_count_in_quiet_windows": 0,
+          "n_quiet_samples_seconds": 400.0,
+          "true_overload_windows": [],
+          "detection_lags_seconds": [],
+          "detection_misses": 0,
+          "stats_by_declared_rate": {
+            "8.0": {
+              "n_samples": 600,
+              "mean": 2741.1806056575842,
+              "p95": 3329.7376770788815,
+              "max": 3773.0898841841117
+            }
+          }
+        },
+        "predicted_goodput_deficit": {
+          "threshold_tuning": {
+            "baseline_mean": 0.0,
+            "baseline_std": 1e-09,
+            "k": 3.0,
+            "threshold": 3.0000000000000004e-09,
+            "degenerate_baseline": true
+          },
+          "n_events": 0,
+          "events": [],
+          "flapping_count_in_quiet_windows": 0,
+          "n_quiet_samples_seconds": 400.0,
+          "true_overload_windows": [],
+          "detection_lags_seconds": [],
+          "detection_misses": 0,
+          "stats_by_declared_rate": {
+            "8.0": {
+              "n_samples": 600,
+              "mean": 0.0,
+              "p95": 0.0,
+              "max": 0.0
+            }
+          }
+        }
+      }
+    },
+    {
+      "scenario": "mixed",
+      "basis": "measured",
+      "note": "Steady 5 rps, mixture length distribution (70% chat-like / 30% RAG-like) -- a second 'must stay quiet' baseline with more per-request token heterogeneity than chat-short.",
+      "seed": 20260711,
+      "n_requests": 6027,
+      "duration_seconds": 1200.0,
+      "calibration_window": [
+        0.0,
+        200.0
+      ],
+      "source_workload_file": "vendor/serving-contracts-v0.2.0/examples/workloads/mixed.json",
+      "source_workload_sha256": "57e313b47ff912e07a57ab74503479e72c7538a8e4f6a4fc42b5ff33e7d0c6ca",
+      "signals": {
+        "cpu_utilization": {
+          "threshold_tuning": {
+            "baseline_mean": 0.2025,
+            "baseline_std": 0.2743059423344671,
+            "k": 3.0,
+            "threshold": 1.0254178270034013,
+            "degenerate_baseline": false
+          },
+          "n_events": 0,
+          "events": [],
+          "flapping_count_in_quiet_windows": 0,
+          "n_quiet_samples_seconds": 1000.0,
+          "true_overload_windows": [],
+          "detection_lags_seconds": [],
+          "detection_misses": 0,
+          "stats_by_declared_rate": {
+            "5.0": {
+              "n_samples": 1200,
+              "mean": 0.2,
+              "p95": 1.0,
+              "max": 1.0
+            }
+          }
+        },
+        "gpu_utilization": {
+          "threshold_tuning": {
+            "baseline_mean": 0.2025,
+            "baseline_std": 0.2743059423344671,
+            "k": 3.0,
+            "threshold": 1.0254178270034013,
+            "degenerate_baseline": false
+          },
+          "n_events": 0,
+          "events": [],
+          "flapping_count_in_quiet_windows": 0,
+          "n_quiet_samples_seconds": 1000.0,
+          "true_overload_windows": [],
+          "detection_lags_seconds": [],
+          "detection_misses": 0,
+          "stats_by_declared_rate": {
+            "5.0": {
+              "n_samples": 1200,
+              "mean": 0.2,
+              "p95": 1.0,
+              "max": 1.0
+            }
+          }
+        },
+        "queue_depth": {
+          "threshold_tuning": {
+            "baseline_mean": 0.005,
+            "baseline_std": 0.07053367989832945,
+            "k": 3.0,
+            "threshold": 0.21660103969498837,
+            "degenerate_baseline": false
+          },
+          "n_events": 0,
+          "events": [],
+          "flapping_count_in_quiet_windows": 0,
+          "n_quiet_samples_seconds": 1000.0,
+          "true_overload_windows": [],
+          "detection_lags_seconds": [],
+          "detection_misses": 0,
+          "stats_by_declared_rate": {
+            "5.0": {
+              "n_samples": 1200,
+              "mean": 0.011666666666666667,
+              "p95": 0.0,
+              "max": 2.0
+            }
+          }
+        },
+        "in_flight_requests": {
+          "threshold_tuning": {
+            "baseline_mean": 0.41,
+            "baseline_std": 0.5673623181001713,
+            "k": 3.0,
+            "threshold": 2.1120869543005143,
+            "degenerate_baseline": false
+          },
+          "n_events": 0,
+          "events": [],
+          "flapping_count_in_quiet_windows": 0,
+          "n_quiet_samples_seconds": 1000.0,
+          "true_overload_windows": [],
+          "detection_lags_seconds": [],
+          "detection_misses": 0,
+          "stats_by_declared_rate": {
+            "5.0": {
+              "n_samples": 1200,
+              "mean": 0.4116666666666667,
+              "p95": 2.0,
+              "max": 4.0
+            }
+          }
+        },
+        "token_arrival_rate": {
+          "threshold_tuning": {
+            "baseline_mean": 12929.131799955596,
+            "baseline_std": 3752.4723508233487,
+            "k": 3.0,
+            "threshold": 24186.548852425643,
+            "degenerate_baseline": false
+          },
+          "n_events": 0,
+          "events": [],
+          "flapping_count_in_quiet_windows": 0,
+          "n_quiet_samples_seconds": 1000.0,
+          "true_overload_windows": [],
+          "detection_lags_seconds": [],
+          "detection_misses": 0,
+          "stats_by_declared_rate": {
+            "5.0": {
+              "n_samples": 1200,
+              "mean": 13486.116902418997,
+              "p95": 19103.491219557913,
+              "max": 25912.02837929791
+            }
+          }
+        },
+        "predicted_goodput_deficit": {
+          "threshold_tuning": {
+            "baseline_mean": 0.0,
+            "baseline_std": 1e-09,
+            "k": 3.0,
+            "threshold": 3.0000000000000004e-09,
+            "degenerate_baseline": true
+          },
+          "n_events": 0,
+          "events": [],
+          "flapping_count_in_quiet_windows": 0,
+          "n_quiet_samples_seconds": 1000.0,
+          "true_overload_windows": [],
+          "detection_lags_seconds": [],
+          "detection_misses": 0,
+          "stats_by_declared_rate": {
+            "5.0": {
+              "n_samples": 1200,
+              "mean": 0.0,
+              "p95": 0.0,
+              "max": 0.0
+            }
+          }
+        }
+      }
+    },
+    {
+      "scenario": "bursty",
+      "basis": "measured",
+      "note": "Real workload file, unmodified (IB-T003 canonical bursty, 60s@2rps + 15s@20rps repeating every 75s for 8 cycles over 600s). The burst phase (20 rps) sits BELOW the fitted 2-slot ground-truth capacity (26.16 rps) -- 76.5% utilization, a near-saturation stress test rather than a hard capacity breach. See bursty-illustrative-severe for a genuine overload variant.",
+      "seed": 20260711,
+      "n_requests": 3378,
+      "duration_seconds": 600.0,
+      "calibration_window": [
+        0.0,
+        60
+      ],
+      "source_workload_file": "tests/golden/fixtures/real/workloads/bursty.json",
+      "source_workload_sha256": "378c3e82faccda26325d63fb0c0cc386499870ea89025bac0e73237f6a39cd71",
+      "signals": {
+        "cpu_utilization": {
+          "threshold_tuning": {
+            "baseline_mean": 0.05,
+            "baseline_std": 0.15,
+            "k": 3.0,
+            "threshold": 0.49999999999999994,
+            "degenerate_baseline": false
+          },
+          "n_events": 6,
+          "events": [
+            {
+              "trigger_time": 66.0,
+              "clear_time": 91.0
+            },
+            {
+              "trigger_time": 142.0,
+              "clear_time": 159.0
+            },
+            {
+              "trigger_time": 223.0,
+              "clear_time": 230.0
+            },
+            {
+              "trigger_time": 295.0,
+              "clear_time": 306.0
+            },
+            {
+              "trigger_time": 521.0,
+              "clear_time": 536.0
+            },
+            {
+              "trigger_time": 590.0,
+              "clear_time": null
+            }
+          ],
+          "flapping_count_in_quiet_windows": 0,
+          "n_quiet_samples_seconds": 420.0,
+          "true_overload_windows": [],
+          "detection_lags_seconds": [],
+          "detection_misses": 0,
+          "stats_by_declared_rate": {
+            "2": {
+              "n_samples": 480,
+              "mean": 0.08541666666666667,
+              "p95": 0.5,
+              "max": 1.0
+            },
+            "20": {
+              "n_samples": 120,
+              "mean": 0.7083333333333334,
+              "p95": 1.0,
+              "max": 1.0
+            }
+          }
+        },
+        "gpu_utilization": {
+          "threshold_tuning": {
+            "baseline_mean": 0.05,
+            "baseline_std": 0.15,
+            "k": 3.0,
+            "threshold": 0.49999999999999994,
+            "degenerate_baseline": false
+          },
+          "n_events": 6,
+          "events": [
+            {
+              "trigger_time": 66.0,
+              "clear_time": 91.0
+            },
+            {
+              "trigger_time": 142.0,
+              "clear_time": 159.0
+            },
+            {
+              "trigger_time": 223.0,
+              "clear_time": 230.0
+            },
+            {
+              "trigger_time": 295.0,
+              "clear_time": 306.0
+            },
+            {
+              "trigger_time": 521.0,
+              "clear_time": 536.0
+            },
+            {
+              "trigger_time": 590.0,
+              "clear_time": null
+            }
+          ],
+          "flapping_count_in_quiet_windows": 0,
+          "n_quiet_samples_seconds": 420.0,
+          "true_overload_windows": [],
+          "detection_lags_seconds": [],
+          "detection_misses": 0,
+          "stats_by_declared_rate": {
+            "2": {
+              "n_samples": 480,
+              "mean": 0.08541666666666667,
+              "p95": 0.5,
+              "max": 1.0
+            },
+            "20": {
+              "n_samples": 120,
+              "mean": 0.7083333333333334,
+              "p95": 1.0,
+              "max": 1.0
+            }
+          }
+        },
+        "queue_depth": {
+          "threshold_tuning": {
+            "baseline_mean": 0.0,
+            "baseline_std": 1e-09,
+            "k": 3.0,
+            "threshold": 3.0000000000000004e-09,
+            "degenerate_baseline": true
+          },
+          "n_events": 1,
+          "events": [
+            {
+              "trigger_time": 525.0,
+              "clear_time": 530.0
+            }
+          ],
+          "flapping_count_in_quiet_windows": 1,
+          "n_quiet_samples_seconds": 420.0,
+          "true_overload_windows": [],
+          "detection_lags_seconds": [],
+          "detection_misses": 0,
+          "stats_by_declared_rate": {
+            "2": {
+              "n_samples": 480,
+              "mean": 0.03333333333333333,
+              "p95": 0.0,
+              "max": 7.0
+            },
+            "20": {
+              "n_samples": 120,
+              "mean": 1.5583333333333333,
+              "p95": 7.049999999999997,
+              "max": 14.0
+            }
+          }
+        },
+        "in_flight_requests": {
+          "threshold_tuning": {
+            "baseline_mean": 0.1,
+            "baseline_std": 0.3,
+            "k": 3.0,
+            "threshold": 0.9999999999999999,
+            "degenerate_baseline": false
+          },
+          "n_events": 6,
+          "events": [
+            {
+              "trigger_time": 66.0,
+              "clear_time": 91.0
+            },
+            {
+              "trigger_time": 142.0,
+              "clear_time": 159.0
+            },
+            {
+              "trigger_time": 223.0,
+              "clear_time": 230.0
+            },
+            {
+              "trigger_time": 295.0,
+              "clear_time": 306.0
+            },
+            {
+              "trigger_time": 521.0,
+              "clear_time": 536.0
+            },
+            {
+              "trigger_time": 590.0,
+              "clear_time": null
+            }
+          ],
+          "flapping_count_in_quiet_windows": 0,
+          "n_quiet_samples_seconds": 420.0,
+          "true_overload_windows": [],
+          "detection_lags_seconds": [],
+          "detection_misses": 0,
+          "stats_by_declared_rate": {
+            "2": {
+              "n_samples": 480,
+              "mean": 0.20416666666666666,
+              "p95": 1.0,
+              "max": 9.0
+            },
+            "20": {
+              "n_samples": 120,
+              "mean": 2.975,
+              "p95": 9.049999999999997,
+              "max": 16.0
+            }
+          }
+        },
+        "token_arrival_rate": {
+          "threshold_tuning": {
+            "baseline_mean": 828.6519656989542,
+            "baseline_std": 302.06959303874265,
+            "k": 3.0,
+            "threshold": 1734.8607448151822,
+            "degenerate_baseline": false
+          },
+          "n_events": 8,
+          "events": [
+            {
+              "trigger_time": 65.0,
+              "clear_time": 105.0
+            },
+            {
+              "trigger_time": 141.0,
+              "clear_time": 164.0
+            },
+            {
+              "trigger_time": 215.0,
+              "clear_time": 239.0
+            },
+            {
+              "trigger_time": 290.0,
+              "clear_time": 314.0
+            },
+            {
+              "trigger_time": 365.0,
+              "clear_time": 394.0
+            },
+            {
+              "trigger_time": 440.0,
+              "clear_time": 464.0
+            },
+            {
+              "trigger_time": 515.0,
+              "clear_time": 539.0
+            },
+            {
+              "trigger_time": 591.0,
+              "clear_time": null
+            }
+          ],
+          "flapping_count_in_quiet_windows": 0,
+          "n_quiet_samples_seconds": 420.0,
+          "true_overload_windows": [],
+          "detection_lags_seconds": [],
+          "detection_misses": 0,
+          "stats_by_declared_rate": {
+            "2": {
+              "n_samples": 480,
+              "mean": 1635.0029449295664,
+              "p95": 6869.624288843033,
+              "max": 10035.63423615552
+            },
+            "20": {
+              "n_samples": 120,
+              "mean": 6476.614484587867,
+              "p95": 9943.391593382456,
+              "max": 10872.34403149772
+            }
+          }
+        },
+        "predicted_goodput_deficit": {
+          "threshold_tuning": {
+            "baseline_mean": 0.0,
+            "baseline_std": 1e-09,
+            "k": 3.0,
+            "threshold": 3.0000000000000004e-09,
+            "degenerate_baseline": true
+          },
+          "n_events": 0,
+          "events": [],
+          "flapping_count_in_quiet_windows": 0,
+          "n_quiet_samples_seconds": 420.0,
+          "true_overload_windows": [],
+          "detection_lags_seconds": [],
+          "detection_misses": 0,
+          "stats_by_declared_rate": {
+            "2": {
+              "n_samples": 480,
+              "mean": 0.0,
+              "p95": 0.0,
+              "max": 0.0
+            },
+            "20": {
+              "n_samples": 120,
+              "mean": 0.0,
+              "p95": 0.0,
+              "max": 0.0
+            }
+          }
+        }
+      }
+    },
+    {
+      "scenario": "bursty-illustrative-severe",
+      "basis": "assumed",
+      "note": "ASSUMED/illustrative: the burst phase amplified 1.6x (20 -> 32.0 rps) relative to the real bursty.json burst rate (20 rps) so it exceeds the fitted ground-truth capacity (26.16 rps) -- everything else (baseline rate, phase durations, length/cancellation distributions, seed) is the real workload's own, re-derived from the same file. NOT a measured scenario; demonstrates the detection-lag mechanism under genuine overload, which the real bursty workload does not reach at this system's fitted capacity.",
+      "seed": 20260711,
+      "n_requests": 4833,
+      "duration_seconds": 600.0,
+      "calibration_window": [
+        0.0,
+        60
+      ],
+      "source_workload_file": "tests/golden/fixtures/real/workloads/bursty.json",
+      "source_workload_sha256": "378c3e82faccda26325d63fb0c0cc386499870ea89025bac0e73237f6a39cd71",
+      "signals": {
+        "cpu_utilization": {
+          "threshold_tuning": {
+            "baseline_mean": 0.025,
+            "baseline_std": 0.10897247358851682,
+            "k": 3.0,
+            "threshold": 0.3519174207655505,
+            "degenerate_baseline": false
+          },
+          "n_events": 8,
+          "events": [
+            {
+              "trigger_time": 65.0,
+              "clear_time": 83.0
+            },
+            {
+              "trigger_time": 140.0,
+              "clear_time": 160.0
+            },
+            {
+              "trigger_time": 215.0,
+              "clear_time": 235.0
+            },
+            {
+              "trigger_time": 290.0,
+              "clear_time": 312.0
+            },
+            {
+              "trigger_time": 365.0,
+              "clear_time": 384.0
+            },
+            {
+              "trigger_time": 440.0,
+              "clear_time": 459.0
+            },
+            {
+              "trigger_time": 515.0,
+              "clear_time": 535.0
+            },
+            {
+              "trigger_time": 590.0,
+              "clear_time": null
+            }
+          ],
+          "flapping_count_in_quiet_windows": 0,
+          "n_quiet_samples_seconds": 420.0,
+          "true_overload_windows": [
+            {
+              "start": 60.0,
+              "end": 75.0
+            },
+            {
+              "start": 135.0,
+              "end": 150.0
+            },
+            {
+              "start": 210.0,
+              "end": 225.0
+            },
+            {
+              "start": 285.0,
+              "end": 300.0
+            },
+            {
+              "start": 360.0,
+              "end": 375.0
+            },
+            {
+              "start": 435.0,
+              "end": 450.0
+            },
+            {
+              "start": 510.0,
+              "end": 525.0
+            },
+            {
+              "start": 585.0,
+              "end": 600.0
+            }
+          ],
+          "detection_lags_seconds": [
+            5.0,
+            5.0,
+            5.0,
+            5.0,
+            5.0,
+            5.0,
+            5.0,
+            5.0
+          ],
+          "detection_misses": 0,
+          "stats_by_declared_rate": {
+            "2": {
+              "n_samples": 480,
+              "mean": 0.125,
+              "p95": 1.0,
+              "max": 1.0
+            },
+            "32.0": {
+              "n_samples": 120,
+              "mean": 0.9208333333333333,
+              "p95": 1.0,
+              "max": 1.0
+            }
+          }
+        },
+        "gpu_utilization": {
+          "threshold_tuning": {
+            "baseline_mean": 0.025,
+            "baseline_std": 0.10897247358851682,
+            "k": 3.0,
+            "threshold": 0.3519174207655505,
+            "degenerate_baseline": false
+          },
+          "n_events": 8,
+          "events": [
+            {
+              "trigger_time": 65.0,
+              "clear_time": 83.0
+            },
+            {
+              "trigger_time": 140.0,
+              "clear_time": 160.0
+            },
+            {
+              "trigger_time": 215.0,
+              "clear_time": 235.0
+            },
+            {
+              "trigger_time": 290.0,
+              "clear_time": 312.0
+            },
+            {
+              "trigger_time": 365.0,
+              "clear_time": 384.0
+            },
+            {
+              "trigger_time": 440.0,
+              "clear_time": 459.0
+            },
+            {
+              "trigger_time": 515.0,
+              "clear_time": 535.0
+            },
+            {
+              "trigger_time": 590.0,
+              "clear_time": null
+            }
+          ],
+          "flapping_count_in_quiet_windows": 0,
+          "n_quiet_samples_seconds": 420.0,
+          "true_overload_windows": [
+            {
+              "start": 60.0,
+              "end": 75.0
+            },
+            {
+              "start": 135.0,
+              "end": 150.0
+            },
+            {
+              "start": 210.0,
+              "end": 225.0
+            },
+            {
+              "start": 285.0,
+              "end": 300.0
+            },
+            {
+              "start": 360.0,
+              "end": 375.0
+            },
+            {
+              "start": 435.0,
+              "end": 450.0
+            },
+            {
+              "start": 510.0,
+              "end": 525.0
+            },
+            {
+              "start": 585.0,
+              "end": 600.0
+            }
+          ],
+          "detection_lags_seconds": [
+            5.0,
+            5.0,
+            5.0,
+            5.0,
+            5.0,
+            5.0,
+            5.0,
+            5.0
+          ],
+          "detection_misses": 0,
+          "stats_by_declared_rate": {
+            "2": {
+              "n_samples": 480,
+              "mean": 0.125,
+              "p95": 1.0,
+              "max": 1.0
+            },
+            "32.0": {
+              "n_samples": 120,
+              "mean": 0.9208333333333333,
+              "p95": 1.0,
+              "max": 1.0
+            }
+          }
+        },
+        "queue_depth": {
+          "threshold_tuning": {
+            "baseline_mean": 0.0,
+            "baseline_std": 1e-09,
+            "k": 3.0,
+            "threshold": 3.0000000000000004e-09,
+            "degenerate_baseline": true
+          },
+          "n_events": 8,
+          "events": [
+            {
+              "trigger_time": 65.0,
+              "clear_time": 83.0
+            },
+            {
+              "trigger_time": 141.0,
+              "clear_time": 160.0
+            },
+            {
+              "trigger_time": 217.0,
+              "clear_time": 233.0
+            },
+            {
+              "trigger_time": 290.0,
+              "clear_time": 308.0
+            },
+            {
+              "trigger_time": 365.0,
+              "clear_time": 384.0
+            },
+            {
+              "trigger_time": 444.0,
+              "clear_time": 459.0
+            },
+            {
+              "trigger_time": 515.0,
+              "clear_time": 534.0
+            },
+            {
+              "trigger_time": 590.0,
+              "clear_time": null
+            }
+          ],
+          "flapping_count_in_quiet_windows": 0,
+          "n_quiet_samples_seconds": 420.0,
+          "true_overload_windows": [
+            {
+              "start": 60.0,
+              "end": 75.0
+            },
+            {
+              "start": 135.0,
+              "end": 150.0
+            },
+            {
+              "start": 210.0,
+              "end": 225.0
+            },
+            {
+              "start": 285.0,
+              "end": 300.0
+            },
+            {
+              "start": 360.0,
+              "end": 375.0
+            },
+            {
+              "start": 435.0,
+              "end": 450.0
+            },
+            {
+              "start": 510.0,
+              "end": 525.0
+            },
+            {
+              "start": 585.0,
+              "end": 600.0
+            }
+          ],
+          "detection_lags_seconds": [
+            5.0,
+            6.0,
+            7.0,
+            5.0,
+            5.0,
+            9.0,
+            5.0,
+            5.0
+          ],
+          "detection_misses": 0,
+          "stats_by_declared_rate": {
+            "2": {
+              "n_samples": 480,
+              "mean": 3.9208333333333334,
+              "p95": 25.149999999999864,
+              "max": 118.0
+            },
+            "32.0": {
+              "n_samples": 120,
+              "mean": 43.45,
+              "p95": 94.0,
+              "max": 114.0
+            }
+          }
+        },
+        "in_flight_requests": {
+          "threshold_tuning": {
+            "baseline_mean": 0.05,
+            "baseline_std": 0.21794494717703364,
+            "k": 3.0,
+            "threshold": 0.703834841531101,
+            "degenerate_baseline": false
+          },
+          "n_events": 8,
+          "events": [
+            {
+              "trigger_time": 65.0,
+              "clear_time": 83.0
+            },
+            {
+              "trigger_time": 140.0,
+              "clear_time": 160.0
+            },
+            {
+              "trigger_time": 215.0,
+              "clear_time": 235.0
+            },
+            {
+              "trigger_time": 290.0,
+              "clear_time": 312.0
+            },
+            {
+              "trigger_time": 365.0,
+              "clear_time": 384.0
+            },
+            {
+              "trigger_time": 440.0,
+              "clear_time": 459.0
+            },
+            {
+              "trigger_time": 515.0,
+              "clear_time": 535.0
+            },
+            {
+              "trigger_time": 590.0,
+              "clear_time": null
+            }
+          ],
+          "flapping_count_in_quiet_windows": 0,
+          "n_quiet_samples_seconds": 420.0,
+          "true_overload_windows": [
+            {
+              "start": 60.0,
+              "end": 75.0
+            },
+            {
+              "start": 135.0,
+              "end": 150.0
+            },
+            {
+              "start": 210.0,
+              "end": 225.0
+            },
+            {
+              "start": 285.0,
+              "end": 300.0
+            },
+            {
+              "start": 360.0,
+              "end": 375.0
+            },
+            {
+              "start": 435.0,
+              "end": 450.0
+            },
+            {
+              "start": 510.0,
+              "end": 525.0
+            },
+            {
+              "start": 585.0,
+              "end": 600.0
+            }
+          ],
+          "detection_lags_seconds": [
+            5.0,
+            5.0,
+            5.0,
+            5.0,
+            5.0,
+            5.0,
+            5.0,
+            5.0
+          ],
+          "detection_misses": 0,
+          "stats_by_declared_rate": {
+            "2": {
+              "n_samples": 480,
+              "mean": 4.170833333333333,
+              "p95": 27.149999999999864,
+              "max": 120.0
+            },
+            "32.0": {
+              "n_samples": 120,
+              "mean": 45.291666666666664,
+              "p95": 96.0,
+              "max": 116.0
+            }
+          }
+        },
+        "token_arrival_rate": {
+          "threshold_tuning": {
+            "baseline_mean": 807.4035549242878,
+            "baseline_std": 265.0509974472093,
+            "k": 3.0,
+            "threshold": 1602.5565472659157,
+            "degenerate_baseline": false
+          },
+          "n_events": 8,
+          "events": [
+            {
+              "trigger_time": 65.0,
+              "clear_time": 89.0
+            },
+            {
+              "trigger_time": 140.0,
+              "clear_time": 175.0
+            },
+            {
+              "trigger_time": 215.0,
+              "clear_time": 243.0
+            },
+            {
+              "trigger_time": 290.0,
+              "clear_time": 314.0
+            },
+            {
+              "trigger_time": 365.0,
+              "clear_time": 389.0
+            },
+            {
+              "trigger_time": 440.0,
+              "clear_time": 464.0
+            },
+            {
+              "trigger_time": 515.0,
+              "clear_time": 539.0
+            },
+            {
+              "trigger_time": 590.0,
+              "clear_time": null
+            }
+          ],
+          "flapping_count_in_quiet_windows": 0,
+          "n_quiet_samples_seconds": 420.0,
+          "true_overload_windows": [
+            {
+              "start": 60.0,
+              "end": 75.0
+            },
+            {
+              "start": 135.0,
+              "end": 150.0
+            },
+            {
+              "start": 210.0,
+              "end": 225.0
+            },
+            {
+              "start": 285.0,
+              "end": 300.0
+            },
+            {
+              "start": 360.0,
+              "end": 375.0
+            },
+            {
+              "start": 435.0,
+              "end": 450.0
+            },
+            {
+              "start": 510.0,
+              "end": 525.0
+            },
+            {
+              "start": 585.0,
+              "end": 600.0
+            }
+          ],
+          "detection_lags_seconds": [
+            5.0,
+            5.0,
+            5.0,
+            5.0,
+            5.0,
+            5.0,
+            5.0,
+            5.0
+          ],
+          "detection_misses": 0,
+          "stats_by_declared_rate": {
+            "2": {
+              "n_samples": 480,
+              "mean": 2137.348084728951,
+              "p95": 11071.18404177456,
+              "max": 17327.44545140572
+            },
+            "32.0": {
+              "n_samples": 120,
+              "mean": 9927.925936655425,
+              "p95": 15667.968539155152,
+              "max": 17121.4961158326
+            }
+          }
+        },
+        "predicted_goodput_deficit": {
+          "threshold_tuning": {
+            "baseline_mean": 0.0,
+            "baseline_std": 1e-09,
+            "k": 3.0,
+            "threshold": 3.0000000000000004e-09,
+            "degenerate_baseline": true
+          },
+          "n_events": 8,
+          "events": [
+            {
+              "trigger_time": 73.0,
+              "clear_time": 82.0
+            },
+            {
+              "trigger_time": 148.0,
+              "clear_time": 157.0
+            },
+            {
+              "trigger_time": 223.0,
+              "clear_time": 231.0
+            },
+            {
+              "trigger_time": 298.0,
+              "clear_time": 307.0
+            },
+            {
+              "trigger_time": 372.0,
+              "clear_time": 382.0
+            },
+            {
+              "trigger_time": 448.0,
+              "clear_time": 456.0
+            },
+            {
+              "trigger_time": 522.0,
+              "clear_time": 532.0
+            },
+            {
+              "trigger_time": 597.0,
+              "clear_time": null
+            }
+          ],
+          "flapping_count_in_quiet_windows": 0,
+          "n_quiet_samples_seconds": 420.0,
+          "true_overload_windows": [
+            {
+              "start": 60.0,
+              "end": 75.0
+            },
+            {
+              "start": 135.0,
+              "end": 150.0
+            },
+            {
+              "start": 210.0,
+              "end": 225.0
+            },
+            {
+              "start": 285.0,
+              "end": 300.0
+            },
+            {
+              "start": 360.0,
+              "end": 375.0
+            },
+            {
+              "start": 435.0,
+              "end": 450.0
+            },
+            {
+              "start": 510.0,
+              "end": 525.0
+            },
+            {
+              "start": 585.0,
+              "end": 600.0
+            }
+          ],
+          "detection_lags_seconds": [
+            13.0,
+            13.0,
+            13.0,
+            13.0,
+            12.0,
+            13.0,
+            12.0,
+            12.0
+          ],
+          "detection_misses": 0,
+          "stats_by_declared_rate": {
+            "2": {
+              "n_samples": 480,
+              "mean": 0.1600266671115275,
+              "p95": 0.0,
+              "max": 9.942778958607011
+            },
+            "32.0": {
+              "n_samples": 120,
+              "mean": 2.2390143907413127,
+              "p95": 6.84277895860701,
+              "max": 9.34277895860701
+            }
+          }
+        }
+      }
+    }
+  ]
+}
