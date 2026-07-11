@@ -1,0 +1,60 @@
+{
+  "profile_id": "mock-loopback-cpu-dev__mock-8b__gateway-mock-admission-sane-v1b",
+  "as_of": "2026-07-11",
+  "basis": "measured",
+  "hardware": {
+    "id": "mock-loopback-cpu-dev",
+    "label": "mock backend (gateway-mediated loopback, local-dev-container, linux/amd64, 4 vCPU, CPU-only) -- NOT real hardware; profiled here for loop-mechanics purposes only, per FL-T004 scope decision. See docs/notes/fitting-method.md."
+  },
+  "model": {
+    "id": "mock-8b",
+    "label": "mock engine checkpoint 'mock-8b' (mockengine@6827d8c) -- simulated, not real weights"
+  },
+  "engine_config_id": "gateway-mock-admission-sane-v1b",
+  "capacity_profile": {
+    "capacity_rps": 31.012239477621186,
+    "capacity_rps_stderr": 1.0337413159207063,
+    "model": "achieved_rps(offered) = min(offered, capacity_rps)",
+    "fitted_parameters": 1,
+    "training_points": 1,
+    "basis": "measured"
+  },
+  "latency_profile": {
+    "status": "PENDING",
+    "reason": "no training point has offered_rate_rps < fitted capacity (31.012 rps) \u2014 the queueing-blowup latency model is not identifiable from this data; see docs/notes/fitting-method.md for the calibration run this needs.",
+    "data_requirement": "one calibration run for this engine_config_id at an offered rate clearly (>=20%) below the fitted capacity_rps above -- see docs/notes/fitting-method.md"
+  },
+  "holdout_validation": {
+    "train_run_id": "ib-t010-e2b-baseline-1x-sane",
+    "holdout_run_id": "ib-t010-e2b-overload-5x-sane",
+    "holdout_offered_rate_rps": 189.0362,
+    "holdout_actual_achieved_rps": 37.35263650127497,
+    "holdout_predicted_achieved_rps": 31.012239477621186,
+    "abs_error_rps": -6.340397023653786,
+    "rel_error": -0.16974429699058502,
+    "measurement_stderr_rps": 0.7396924251087651,
+    "error_vs_measurement_noise_ratio": 8.571666828576063,
+    "g8_outcome": "MISS documented as a limitation, per FL-T004 stop condition (prediction error is a result, not a failure): the model mis-predicts achieved throughput at 5x offered load by 17.0% (under-predicting), several times the measurement-noise floor -- a genuine limitation of the single-parameter capacity-clamp model, not sampling noise. See reports/holdout-validation.md."
+  },
+  "reverse_direction_robustness_check": {
+    "train_run_id": "ib-t010-e2b-overload-5x-sane",
+    "holdout_run_id": "ib-t010-e2b-baseline-1x-sane",
+    "rel_error": 0.20444821562238658,
+    "note": "NOT the canonical profile; recorded to show the miss is symmetric in scale regardless of fit direction."
+  },
+  "provenance": {
+    "source_run_manifests": [
+      "inferbench/docs/evidence/ib-t010/e2b-baseline/manifest.json",
+      "inferbench/docs/evidence/ib-t010/e2b-overload/manifest.json"
+    ],
+    "source_benchmark_results": [
+      "inferbench/docs/evidence/ib-t010/results/ib-t010-e2b-baseline-1x-sane.benchmark-result.json",
+      "inferbench/docs/evidence/ib-t010/results/ib-t010-e2b-overload-5x-sane.benchmark-result.json"
+    ],
+    "source_workloads": [
+      "inferbench/docs/evidence/ib-t010/e2-baseline-workload.json",
+      "inferbench/docs/evidence/ib-t010/e2-overload-workload.json"
+    ],
+    "fixture_copies_committed_at": "tests/fitting/fixtures/real/ib-t010"
+  }
+}

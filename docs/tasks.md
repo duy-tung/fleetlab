@@ -86,6 +86,35 @@ Execution order: FL-T002 → FL-T003 → FL-T004 (G8 review) → {FL-T005, FL-T0
 - **Evidence:** validation report (prediction vs holdout, error analysis).
 - **Integration impact:** G8; the credibility basis for everything fleetlab publishes.
 - **Stop condition:** stated error achieved **or documented as limitation** (prediction error is a result, not a failure).
+- **Status (2026-07-11): DONE — G8 gate evaluated, outcome MISS documented
+  as a limitation (publishable per the stop condition).**
+  `fleetlab/fitting/{corpus,capacity,latency,holdout,build_profiles}.py`
+  implemented; 24 tests green (`tests/fitting/`), full suite 127/127.
+  Corpus reality: only two (hardware, model, engine-config) buckets in the
+  entire available evidence have more than one offered-rate point (the
+  mock backend under gateway configs `admission-sane-v1`/`admission-sane-
+  v1b`, two points each, ~37.8/~189.0 rps) — every other bucket (both
+  llama.cpp arms, all of `i3`, all of `ib-t005`) has exactly one point and
+  is recorded insufficient, not fitted. The task brief's "knee at 21.12
+  rps" was searched for exhaustively and not found in the corpus (recorded
+  as a discrepancy, `docs/notes/fitting-method.md` §2); the actual measured
+  probe-estimated capacities (~31–38 rps) are used throughout. Both
+  fittable configs: one-free-parameter capacity-clamp model
+  (`achieved_rps(offered)=min(offered,C)`), holdout-validated in both
+  directions — **12.6%–20.4% relative prediction error, 4–9x the Poisson-
+  counting measurement-noise floor** (a genuine model-specification
+  limitation, not sampling noise; full numbers in `reports/holdout-
+  validation.md`). Latency profile: **PENDING** for both configs — every
+  real point already sits at/above its own single-point capacity estimate,
+  so the queueing-blowup latency model has no training point where it is
+  defined; the precise missing-data requirement is recorded, not forced.
+  Memory profile: still **PENDING**, unchanged from FL-T003 (no isolated
+  KV-cache measurement exists in the evidence). Holdout impossibility is
+  structural: `evaluate_holdout` raises `TrainingDataLeakageError` against
+  the profile's own recorded training-run-ID set regardless of caller
+  claims, asserted by a dedicated test. No `scipy` added — one parameter,
+  one training point is an algebraic solve, not an optimization
+  (`docs/adr/0002-fitting-method.md`).
 
 ## FL-T005 — Dynamics: queue growth, cold start, scaling delays, headroom
 - **Goal/Repo:** simulate time-dependent behavior in fleetlab.
