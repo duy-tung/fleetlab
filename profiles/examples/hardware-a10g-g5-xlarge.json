@@ -1,0 +1,57 @@
+{
+  "profile_id": "hardware-a10g-g5-xlarge",
+  "version": "0.1.0",
+  "description": "Single NVIDIA A10G in an AWS g5.xlarge — the program's baseline benchmark hardware. Example fixture; specs are volatile ecosystem facts (as of 2026-07 — re-verify at use time).",
+  "gpu": {
+    "model": "NVIDIA A10G",
+    "count_per_node": 1,
+    "vram_gb": {
+      "value": 24,
+      "provenance": {
+        "basis": "source-reported",
+        "as_of": "2026-07-10",
+        "source": "NVIDIA A10G product specification (24 GB GDDR6)"
+      }
+    },
+    "memory_bandwidth_gbps": {
+      "value": 600,
+      "provenance": {
+        "basis": "source-reported",
+        "as_of": "2026-07-10",
+        "source": "NVIDIA A10G product specification",
+        "notes": "as of 2026-07 — re-verify at use time"
+      }
+    },
+    "fp16_tflops": {
+      "value": 125,
+      "provenance": {
+        "basis": "source-reported",
+        "as_of": "2026-07-10",
+        "source": "NVIDIA A10G product specification (FP16 Tensor Core, dense)",
+        "notes": "dense figure; sparsity-doubled marketing figures deliberately not used"
+      }
+    }
+  },
+  "node": {
+    "instance_type": "g5.xlarge",
+    "cloud": "aws",
+    "region": "us-east-1",
+    "vcpus": {
+      "value": 4,
+      "provenance": {
+        "basis": "source-reported",
+        "as_of": "2026-07-10",
+        "source": "AWS EC2 G5 instance documentation"
+      }
+    },
+    "ram_gb": {
+      "value": 16,
+      "provenance": {
+        "basis": "source-reported",
+        "as_of": "2026-07-10",
+        "source": "AWS EC2 G5 instance documentation"
+      }
+    }
+  },
+  "notes": "Matches the hardware block of the benchmark run-manifest example (gpu_model NVIDIA A10G, vram_gb 24, instance_type g5.xlarge)."
+}

@@ -1,0 +1,5 @@
+# serving-contracts compatibility kit — the only runtime dependencies.
+# Standard schema validators only (see docs/architecture.md, validator-kit design):
+# no provider SDKs, no frameworks, no consumer helpers.
+jsonschema>=4.18,<5
+PyYAML>=6,<7

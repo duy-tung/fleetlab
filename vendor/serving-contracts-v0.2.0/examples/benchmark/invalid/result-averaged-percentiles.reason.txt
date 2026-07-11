@@ -1,0 +1,4 @@
+Violates benchmark-result.schema.json pooled_percentiles.method const: the only
+schema-valid value is "pooled-raw-events". This fixture declares
+"averaged-per-run-percentiles" — averaging percentiles across runs is
+statistically invalid and structurally inexpressible in a valid result.

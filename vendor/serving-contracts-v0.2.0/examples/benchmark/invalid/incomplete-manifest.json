@@ -1,0 +1,25 @@
+{
+  "run_id": "run-2026-07-10-incomplete-001",
+  "target_topology": "engine-direct",
+  "workload_ref": {
+    "name": "chat-short",
+    "version": "0.1.0",
+    "seed": 20260710
+  },
+  "engine": {
+    "name": "vllm",
+    "version": "0.9.1",
+    "commit": null,
+    "flags": {}
+  },
+  "model": {
+    "checkpoint": "meta-llama/Llama-3.1-8B-Instruct",
+    "revision": "0e9e39f249a16976918f6564b8830bc894c89659",
+    "tokenizer": "meta-llama/Llama-3.1-8B-Instruct"
+  },
+  "client": {
+    "location": "same-host",
+    "rtt_ms": 0.1
+  },
+  "repetitions": 1
+}

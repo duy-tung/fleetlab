@@ -1,0 +1,54 @@
+{
+  "engine": {
+    "name": "vllm",
+    "version": "0.9.1",
+    "commit": null
+  },
+  "streaming": {
+    "supported": true,
+    "protocol": "sse"
+  },
+  "usage_in_stream": {
+    "supported": true
+  },
+  "cancellation": {
+    "mechanism": "http-connection-close"
+  },
+  "metrics": {
+    "endpoint": "/metrics",
+    "format": "prometheus",
+    "name_mapping": {
+      "as_of": "2026-07-10",
+      "verified_against_version": "0.9.1",
+      "entries": {
+        "queue_waiting_requests": "vllm:num_requests_waiting",
+        "running_requests": "vllm:num_requests_running"
+      }
+    }
+  },
+  "tokenizer": {
+    "id": "meta-llama/Llama-3.1-8B-Instruct"
+  },
+  "context_limit_tokens": 131072,
+  "concurrency_hints": {
+    "max_concurrent_requests": 256
+  },
+  "prefix_cache": {
+    "supported": true,
+    "observability": {
+      "observable": false,
+      "signals": []
+    }
+  },
+  "quantization": {
+    "active": null,
+    "methods_supported": []
+  },
+  "priority": {
+    "supported": false
+  },
+  "provenance": {
+    "as_of": "2026-07-10",
+    "method": "declared"
+  }
+}

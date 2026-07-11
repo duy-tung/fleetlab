@@ -1,0 +1,30 @@
+{
+  "name": "prefix-no-length",
+  "version": "0.1.0",
+  "seed": 20260710,
+  "description": "INVALID: prefix_sharing.ratio > 0 without shared_prefix_length_tokens.",
+  "arrival_process": {
+    "type": "open-loop-poisson",
+    "rate_rps": 4
+  },
+  "input_length_distribution": {
+    "type": "constant",
+    "value": 2048
+  },
+  "output_length_distribution": {
+    "type": "constant",
+    "value": 256
+  },
+  "prefix_sharing": {
+    "ratio": 0.8
+  },
+  "cancellation": {
+    "rate": 0
+  },
+  "slow_client": {
+    "fraction": 0
+  },
+  "stop": {
+    "duration_seconds": 300
+  }
+}

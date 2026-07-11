@@ -1,0 +1,8 @@
+why-invalid: violates the termination-grace > max-stream-duration rule. The descriptor
+sets termination_grace_period_seconds=30 against max_stream_duration_seconds=600 and
+honestly reports grace_period_exceeds_max_stream_duration=false — which fails the
+schema's required const-true attestation (deployment-contract.schema.json,
+graceful_termination). A 30s grace would force-kill streams up to 600s long during
+any termination or rolling update (fault scenarios fs-05/fs-12). Note: JSON Schema
+cannot compare the two sibling numbers itself; the attestation field is the structural
+encoding, and validators that can compare numbers SHOULD also enforce the arithmetic.

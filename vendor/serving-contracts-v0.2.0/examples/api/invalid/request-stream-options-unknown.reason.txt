@@ -1,0 +1,1 @@
+Unknown nested field inside stream_options ('continuous_usage_stats' — a vLLM extension). Rejection-not-ignore applies at every nesting level: 400 invalid_request/unsupported_field (param: stream_options.continuous_usage_stats).

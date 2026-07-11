@@ -1,0 +1,43 @@
+{
+  "name": "bursty",
+  "version": "0.1.0",
+  "seed": 20260710,
+  "description": "Time-varying open-loop rate: quiet baseline with 10x bursts, repeating. Exercises queue growth, shedding, and Retry-After behavior. NON-NORMATIVE example fixture; canonical suite owned by inferbench.",
+  "arrival_process": {
+    "type": "open-loop-poisson",
+    "phases": [
+      { "duration_seconds": 120, "rate_rps": 2 },
+      { "duration_seconds": 30, "rate_rps": 20 },
+      { "duration_seconds": 60, "rate_rps": 2 },
+      { "duration_seconds": 15, "rate_rps": 25 }
+    ],
+    "repeat_phases": true
+  },
+  "input_length_distribution": {
+    "type": "normal",
+    "mean": 300,
+    "stddev": 120,
+    "min": 16,
+    "max": 1024
+  },
+  "output_length_distribution": {
+    "type": "normal",
+    "mean": 300,
+    "stddev": 150,
+    "min": 16,
+    "max": 1024
+  },
+  "prefix_sharing": {
+    "ratio": 0
+  },
+  "cancellation": {
+    "rate": 0
+  },
+  "slow_client": {
+    "fraction": 0
+  },
+  "stop": {
+    "duration_seconds": 1800
+  },
+  "tags": ["burst", "admission-control"]
+}

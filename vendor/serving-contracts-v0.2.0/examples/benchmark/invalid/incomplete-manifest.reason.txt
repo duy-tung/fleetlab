@@ -1,0 +1,5 @@
+Deliberately incomplete manifest (SC-T003 required negative fixture). Violates
+benchmark-run.schema.json required list: missing `hardware`, `warm_up`, and
+`hypothesis`. A run without recorded hardware, warm-up policy, and a stated
+hypothesis is not a valid run record — the comparability rule cannot be applied
+to it.

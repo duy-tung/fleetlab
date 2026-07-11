@@ -1,0 +1,6 @@
+why-invalid: a v0.1.0-shaped raw event that omits the required "scheduled_send_ts"
+field (raw-event.schema.json, required — breaking change in v0.2.0 under the pre-1.0
+rule, with migration note in RELEASES.md). Measuring latency from send_ts (actual
+wire-write) instead of the schedule-plan send time hides dispatch/connect/write
+queueing under saturation (coordinated omission); an event without the scheduled
+send time cannot be pooled on the corrected basis and MUST fail validation.

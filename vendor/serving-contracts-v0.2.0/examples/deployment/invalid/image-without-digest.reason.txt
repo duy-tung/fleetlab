@@ -1,0 +1,4 @@
+why-invalid: the image block has only a mutable tag ("latest") and omits the required
+"digest" field (deployment-contract.schema.json, image.required). The digest is the
+deployment pin — a tag-only reference cannot guarantee that what runs is what was
+released and benchmarked (benchmark comparability rule), so it is not schema-valid.

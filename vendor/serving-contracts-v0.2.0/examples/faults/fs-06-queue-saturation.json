@@ -1,0 +1,28 @@
+{
+  "scenario_id": "fs-06",
+  "contract_item": 6,
+  "name": "Queue saturation",
+  "injection": {
+    "description": "Raise offered load above the measured saturation knee (e.g. bursty workload at a multiple of knee arrival rate) so the admission queue reaches its configured bound.",
+    "target": "client",
+    "method": "load-profile",
+    "parameters": { "workload": "bursty", "offered_rate_vs_knee": 1.5 }
+  },
+  "expected_gateway_semantics": [
+    "Excess requests are shed at admission with 429 + Retry-After and a typed error envelope (error.type=rate_limited) — shedding is explicit, never silent queue growth or connection resets.",
+    "Accepted-request latency is protected: queue depth and queue wait stay at their configured bounds; requests already admitted keep meeting the latency SLO."
+  ],
+  "expected_client_visible_behavior": [
+    "Shed requests receive HTTP 429 with a Retry-After header and a typed rate_limited envelope carrying the request ID.",
+    "Accepted requests are indistinguishable from no-fault operation (latency within SLO)."
+  ],
+  "metrics_that_must_move": [
+    { "source": "gateway", "metric": "inference_sheds_total", "expectation": "increases with reason=queue_full while the overload lasts" },
+    { "source": "gateway", "metric": "inference_queue_depth", "expectation": "plateaus at the configured bound instead of growing unbounded" },
+    { "source": "gateway", "metric": "inference_queue_wait_seconds", "expectation": "p95 for admitted requests stays within the configured admission bound" }
+  ],
+  "metrics_that_must_not_move": [
+    { "source": "gateway", "metric": "inference_ttft_seconds", "expectation": "p95 of admitted requests stays within the SLO — shedding protects the admitted population" }
+  ],
+  "abort_condition": "Abort the injection if accepted-request TTFT p95 exceeds the SLO threshold by more than 50% (shedding failed to protect admitted traffic), or if queue depth grows past its configured bound."
+}

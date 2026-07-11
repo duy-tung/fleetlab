@@ -1,0 +1,18 @@
+id: 0
+data: {"id":"chatcmpl-fixture-0002","object":"chat.completion.chunk","created":1783641600,"model":"mock-8b","choices":[{"index":0,"delta":{"role":"assistant","content":""}}]}
+
+id: 1
+data: {"id":"chatcmpl-fixture-0002","object":"chat.completion.chunk","created":1783641600,"model":"mock-8b","choices":[{"index":0,"delta":{"content":"Hello"}}]}
+
+id: 2
+data: {"id":"chatcmpl-fixture-0002","object":"chat.completion.chunk","created":1783641600,"model":"mock-8b","choices":[{"index":0,"delta":{"content":", world."}}]}
+
+id: 3
+data: {"id":"chatcmpl-fixture-0002","object":"chat.completion.chunk","created":1783641600,"model":"mock-8b","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}
+
+id: 4
+data: {"id":"chatcmpl-fixture-0002","object":"chat.completion.chunk","created":1783641600,"model":"mock-8b","choices":[],"usage":{"prompt_tokens":12,"completion_tokens":4,"total_tokens":16}}
+
+id: 5
+data: [DONE]
+

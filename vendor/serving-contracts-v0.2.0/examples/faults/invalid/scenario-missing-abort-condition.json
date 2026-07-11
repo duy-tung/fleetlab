@@ -1,0 +1,21 @@
+{
+  "scenario_id": "fs-06",
+  "contract_item": 6,
+  "name": "Queue saturation (no abort condition)",
+  "injection": {
+    "description": "Raise offered load above the saturation knee so the admission queue reaches its configured bound.",
+    "target": "client",
+    "method": "load-profile",
+    "parameters": { "workload": "bursty", "offered_rate_vs_knee": 1.5 }
+  },
+  "expected_gateway_semantics": [
+    "Excess requests are shed at admission with 429 + Retry-After (error.type=rate_limited).",
+    "Accepted-request latency is protected."
+  ],
+  "expected_client_visible_behavior": [
+    "Shed requests receive HTTP 429 with Retry-After; accepted requests meet the SLO."
+  ],
+  "metrics_that_must_move": [
+    { "source": "gateway", "metric": "inference_sheds_total", "expectation": "increases with reason=queue_full" }
+  ]
+}

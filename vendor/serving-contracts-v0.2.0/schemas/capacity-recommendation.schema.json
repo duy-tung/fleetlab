@@ -1,0 +1,271 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/duy-tung/serving-contracts/schemas/capacity-recommendation.schema.json",
+  "title": "Capacity recommendation (Contract 7, fleetlab -> inferops)",
+  "description": "Machine-checkable capacity recommendation closing the I6 feedback loop (Scenario E: benchmark results -> recommendation -> deployment change -> re-measurement). Normative structural rules: (1) inputs are explicit REFERENCES — a recommendation that does not name the benchmark results, workload version, SLO, cost profile, and hardware profiles it was derived from is not valid; (2) every predicted quantity carries STATED UNCERTAINTY — a point prediction without an interval is not expressible; (3) assumptions and sensitivity notes are required — empty is not an option, because a model without stated assumptions is a fabricated default.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "recommendation_id",
+    "created_at",
+    "producer",
+    "inputs",
+    "recommended_topology",
+    "predictions",
+    "autoscaling",
+    "assumptions",
+    "sensitivity_notes"
+  ],
+  "properties": {
+    "recommendation_id": { "type": "string", "minLength": 1 },
+    "created_at": { "type": "string", "format": "date-time" },
+    "producer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tool", "version"],
+      "properties": {
+        "tool": { "type": "string", "minLength": 1, "description": "Emitting system (fleetlab)." },
+        "version": { "type": "string", "minLength": 1 }
+      }
+    },
+    "inputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["benchmark_result_ids", "workload_ref", "slo_ref", "cost_profile_ref", "hardware_profile_refs"],
+      "description": "Explicit references to everything the recommendation was derived from. These pins make the recommendation auditable and the re-measurement comparable.",
+      "properties": {
+        "benchmark_result_ids": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "description": "result_id values of the benchmark-result artifacts the model was fitted to."
+        },
+        "workload_ref": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name", "version"],
+          "properties": {
+            "name": { "type": "string", "minLength": 1 },
+            "version": { "type": "string", "minLength": 1 }
+          }
+        },
+        "slo_ref": { "$ref": "#/$defs/versionedRef" },
+        "cost_profile_ref": { "$ref": "#/$defs/versionedRef" },
+        "hardware_profile_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/versionedRef" }
+        },
+        "model_profile_ref": { "$ref": "#/$defs/versionedRef" },
+        "demand_forecast": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "The demand the recommendation is sized for.",
+          "required": ["peak_rps", "basis"],
+          "properties": {
+            "peak_rps": { "type": "number", "exclusiveMinimum": 0 },
+            "basis": { "type": "string", "minLength": 1, "description": "Where the forecast comes from (measured traffic, stated planning assumption, ...)." }
+          }
+        }
+      }
+    },
+    "recommended_topology": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["replica_groups"],
+      "description": "The recommended serving topology: replica counts per hardware type plus the engine configuration they run. inferops applies this as an experiment (deployment-contract instances + manifests), never blindly.",
+      "properties": {
+        "replica_groups": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["hardware_profile_ref", "replica_count", "engine_config"],
+            "properties": {
+              "hardware_profile_ref": { "$ref": "#/$defs/versionedRef" },
+              "replica_count": { "type": "integer", "minimum": 0 },
+              "engine_config": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["engine", "flags"],
+                "properties": {
+                  "engine": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["name", "version"],
+                    "properties": {
+                      "name": { "type": "string", "minLength": 1 },
+                      "version": { "type": "string", "minLength": 1 }
+                    }
+                  },
+                  "flags": {
+                    "type": "object",
+                    "description": "Engine runtime flags for this group (same vocabulary as benchmark-run.engine.flags, so the applied config is comparable to the measured one).",
+                    "additionalProperties": { "type": ["string", "number", "boolean", "null"] }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "baseline": {
+          "type": "string",
+          "description": "The topology the recommendation changes FROM (e.g. the measured single-replica baseline), making the recommended change explicit."
+        },
+        "change_summary": { "type": "string", "description": "One-line statement of the topology change (Scenario E evidence)." }
+      }
+    },
+    "predictions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["goodput", "latency", "cost"],
+      "description": "Predicted goodput, latency, and cost under the recommended topology — every quantity WITH stated uncertainty (structurally required).",
+      "properties": {
+        "goodput": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["requests_per_second_meeting_slo"],
+          "properties": {
+            "requests_per_second_meeting_slo": { "$ref": "#/$defs/predictedQuantity" },
+            "at_offered_rps": { "type": "number", "exclusiveMinimum": 0, "description": "Offered rate the goodput prediction is stated at (typically the demand forecast peak)." }
+          }
+        },
+        "latency": {
+          "type": "object",
+          "minProperties": 1,
+          "description": "Predicted latency statistics, keyed <signal>_<statistic> using Contract 2 signal names (e.g. ttft_seconds_p95, itl_seconds_p99, e2e_duration_seconds_p95).",
+          "propertyNames": { "pattern": "^(client_)?[a-z][a-z0-9_]*_(p50|p90|p95|p99|p999|mean|max)$" },
+          "additionalProperties": { "$ref": "#/$defs/predictedQuantity" }
+        },
+        "cost": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": false,
+          "description": "Predicted cost under the referenced cost profile.",
+          "properties": {
+            "usd_per_hour": { "$ref": "#/$defs/predictedQuantity" },
+            "usd_per_million_tokens": { "$ref": "#/$defs/predictedQuantity" },
+            "usd_per_successful_request": { "$ref": "#/$defs/predictedQuantity" }
+          }
+        }
+      }
+    },
+    "autoscaling": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["signal", "thresholds"],
+      "description": "Recommended autoscaling signal and thresholds. The signal comes from the Contract 2 vocabulary (source=gateway) or the backend-capability canonical keys (source=engine) — never engine-native metric names.",
+      "properties": {
+        "signal": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["source", "metric"],
+          "properties": {
+            "source": { "enum": ["gateway", "engine"] },
+            "metric": { "type": "string", "pattern": "^[a-z][a-z0-9_:]*$" },
+            "statistic": { "type": "string", "description": "Aggregation over the signal (e.g. p95 over 1m) when it is a distribution." }
+          }
+        },
+        "thresholds": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["scale_out", "scale_in"],
+          "properties": {
+            "scale_out": { "$ref": "#/$defs/threshold" },
+            "scale_in": { "$ref": "#/$defs/threshold" }
+          }
+        },
+        "bounds": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["min_replicas", "max_replicas"],
+          "properties": {
+            "min_replicas": { "type": "integer", "minimum": 0 },
+            "max_replicas": { "type": "integer", "minimum": 1 }
+          }
+        },
+        "notes": { "type": "string" }
+      }
+    },
+    "assumptions": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Every assumption the prediction rests on, stated explicitly (linear scaling, routing policy, workload stationarity, ...)."
+    },
+    "sensitivity_notes": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Which inputs the recommendation is most sensitive to, and how it degrades when they move."
+    },
+    "re_measurement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["workload_ref", "single_declared_variable", "success_criteria"],
+      "description": "Plan for the re-measurement that closes the loop (Scenario E): re-run the referenced workload against the applied topology with the topology change as the single declared experimental variable (benchmark comparability rule).",
+      "properties": {
+        "workload_ref": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name", "version"],
+          "properties": {
+            "name": { "type": "string", "minLength": 1 },
+            "version": { "type": "string", "minLength": 1 },
+            "seed": { "type": "integer" }
+          }
+        },
+        "single_declared_variable": { "type": "string", "minLength": 1 },
+        "success_criteria": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "notes": { "type": "string" }
+  },
+  "$defs": {
+    "versionedRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "version": { "type": "string" }
+      }
+    },
+    "predictedQuantity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "unit", "uncertainty"],
+      "description": "A predicted value WITH stated uncertainty. The uncertainty interval is REQUIRED: a point prediction without one is not a valid recommendation input for an operational change.",
+      "properties": {
+        "value": { "type": "number" },
+        "unit": { "enum": ["requests_per_second", "seconds", "usd_per_hour", "usd_per_million_tokens", "usd_per_successful_request", "ratio"] },
+        "uncertainty": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["lower", "upper", "method"],
+          "properties": {
+            "lower": { "type": "number" },
+            "upper": { "type": "number" },
+            "confidence": { "type": "number", "exclusiveMinimum": 0, "maximum": 1, "description": "Nominal coverage of the interval (e.g. 0.8)." },
+            "method": { "type": "string", "minLength": 1, "description": "How the interval was obtained (bootstrap over pooled events, stated model-error margin, ...). An interval without a method is a decoration, not an uncertainty statement." }
+          }
+        }
+      }
+    },
+    "threshold": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["comparator", "value"],
+      "properties": {
+        "comparator": { "enum": ["<", "<=", ">", ">="] },
+        "value": { "type": "number" },
+        "for_seconds": { "type": "integer", "minimum": 0, "description": "Sustain duration before the action fires (flap damping)." }
+      }
+    }
+  }
+}

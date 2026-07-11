@@ -1,0 +1,19 @@
+{
+  "profile_id": "cost-g5-xlarge-ondemand",
+  "version": "0.1.0",
+  "currency": "USD",
+  "rates": [
+    {
+      "hardware_profile_ref": { "id": "hardware-a10g-g5-xlarge" },
+      "pricing_model": "on-demand",
+      "region": "us-east-1",
+      "usd_per_hour": {
+        "value": 1.006,
+        "provenance": {
+          "basis": "source-reported",
+          "as_of": "2026-07-10"
+        }
+      }
+    }
+  ]
+}

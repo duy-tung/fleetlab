@@ -1,0 +1,74 @@
+{
+  "engine": {
+    "name": "vllm",
+    "version": "0.9.1",
+    "commit": "1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b"
+  },
+  "streaming": {
+    "supported": true,
+    "protocol": "sse"
+  },
+  "usage_in_stream": {
+    "supported": true,
+    "mechanism": "usage in final chunk when stream_options.include_usage=true (OpenAI-compatible server)"
+  },
+  "cancellation": {
+    "mechanism": "http-connection-close",
+    "propagation_note": "OpenAI-compatible server aborts the request in the engine when the client disconnects; abort takes effect at the next scheduling step (as of 2026-07 — re-verify at use time).",
+    "release_observability": {
+      "observable": true,
+      "signals": [
+        "running_requests",
+        "kv_cache_usage_ratio",
+        "log:Aborted request"
+      ]
+    }
+  },
+  "metrics": {
+    "endpoint": "/metrics",
+    "format": "prometheus",
+    "name_mapping": {
+      "as_of": "2026-07-10",
+      "verified_against_version": "0.9.1",
+      "entries": {
+        "queue_waiting_requests": "vllm:num_requests_waiting",
+        "running_requests": "vllm:num_requests_running",
+        "kv_cache_usage_ratio": "vllm:gpu_cache_usage_perc",
+        "prefix_cache_hit_rate": "vllm:gpu_prefix_cache_hit_rate",
+        "generation_tokens_total": "vllm:generation_tokens_total",
+        "prompt_tokens_total": "vllm:prompt_tokens_total"
+      }
+    }
+  },
+  "tokenizer": {
+    "id": "meta-llama/Llama-3.1-8B-Instruct",
+    "revision": "0e9e39f249a16976918f6564b8830bc894c89659"
+  },
+  "context_limit_tokens": 131072,
+  "concurrency_hints": {
+    "max_concurrent_requests": 256,
+    "max_batched_tokens": 8192
+  },
+  "prefix_cache": {
+    "supported": true,
+    "observability": {
+      "observable": true,
+      "signals": [
+        "prefix_cache_hit_rate"
+      ]
+    }
+  },
+  "quantization": {
+    "active": null,
+    "methods_supported": ["awq", "gptq", "fp8"]
+  },
+  "priority": {
+    "supported": true,
+    "mechanism": "per-request priority field with --scheduling-policy priority; scheduling itself is engine-owned (as of 2026-07 — re-verify at use time)"
+  },
+  "provenance": {
+    "as_of": "2026-07-10",
+    "method": "source-reported",
+    "notes": "vLLM metric names have changed across versions (waiting/KV-usage gauges renamed in the past) and MUST be resolved via name_mapping, never hardcoded; re-verify mapping at adapter-probe time (as of 2026-07). Example fixture; version/commit/model illustrative."
+  }
+}

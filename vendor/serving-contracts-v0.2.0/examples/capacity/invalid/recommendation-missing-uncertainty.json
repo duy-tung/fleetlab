@@ -1,0 +1,63 @@
+{
+  "recommendation_id": "rec-2026-07-10-chatshort-a10g-scaleout-002",
+  "created_at": "2026-07-10T15:00:00Z",
+  "producer": { "tool": "fleetlab", "version": "0.1.0" },
+  "inputs": {
+    "benchmark_result_ids": ["res-2026-07-10-chatshort-vllm-a10g-001"],
+    "workload_ref": { "name": "chat-short", "version": "0.1.0" },
+    "slo_ref": { "id": "slo-chat-interactive", "version": "0.1.0" },
+    "cost_profile_ref": { "id": "cost-g5-xlarge-ondemand", "version": "0.1.0" },
+    "hardware_profile_refs": [{ "id": "hardware-a10g-g5-xlarge", "version": "0.1.0" }]
+  },
+  "recommended_topology": {
+    "replica_groups": [
+      {
+        "hardware_profile_ref": { "id": "hardware-a10g-g5-xlarge" },
+        "replica_count": 3,
+        "engine_config": {
+          "engine": { "name": "vllm", "version": "0.9.1" },
+          "flags": { "max_num_seqs": 256, "gpu_memory_utilization": 0.9 }
+        }
+      }
+    ]
+  },
+  "predictions": {
+    "goodput": {
+      "requests_per_second_meeting_slo": {
+        "value": 22.2,
+        "unit": "requests_per_second"
+      }
+    },
+    "latency": {
+      "ttft_seconds_p95": {
+        "value": 0.42,
+        "unit": "seconds",
+        "uncertainty": {
+          "lower": 0.38,
+          "upper": 0.55,
+          "method": "measured single-replica p95 carried over"
+        }
+      }
+    },
+    "cost": {
+      "usd_per_hour": {
+        "value": 3.018,
+        "unit": "usd_per_hour",
+        "uncertainty": {
+          "lower": 3.018,
+          "upper": 3.018,
+          "method": "deterministic: 3 x on-demand rate"
+        }
+      }
+    }
+  },
+  "autoscaling": {
+    "signal": { "source": "gateway", "metric": "inference_queue_wait_seconds" },
+    "thresholds": {
+      "scale_out": { "comparator": ">", "value": 0.5 },
+      "scale_in": { "comparator": "<", "value": 0.05 }
+    }
+  },
+  "assumptions": ["linear goodput scaling across replicas"],
+  "sensitivity_notes": ["sensitive to output-length distribution"]
+}

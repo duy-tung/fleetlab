@@ -1,0 +1,58 @@
+{
+  "component": "vllm-backend",
+  "release": "0.9.1",
+  "image": {
+    "repository": "docker.io/vllm/vllm-openai",
+    "tag": "latest"
+  },
+  "ports": {
+    "api": { "port": 8000, "protocol": "http" },
+    "metrics": { "port": 8000, "path": "/metrics" }
+  },
+  "env": [],
+  "config_mounts": [],
+  "probes": {
+    "startup": {
+      "endpoint": "/health",
+      "port": 8000,
+      "period_seconds": 10,
+      "timeout_seconds": 5,
+      "failure_threshold": 30
+    },
+    "readiness": {
+      "endpoint": "/health",
+      "port": 8000,
+      "period_seconds": 10,
+      "timeout_seconds": 5,
+      "failure_threshold": 2,
+      "warm_up": {
+        "ready_only_after_warm_up": true,
+        "warm_signal": "model weights loaded and engine initialization complete"
+      }
+    },
+    "liveness": {
+      "endpoint": "/health",
+      "port": 8000,
+      "period_seconds": 15,
+      "timeout_seconds": 5,
+      "failure_threshold": 4
+    }
+  },
+  "model_mount": {
+    "path": "/models/llama-3.1-8b-instruct",
+    "volume": { "name": "model-cache", "type": "persistent-volume-claim" },
+    "expected_content": "meta-llama/Llama-3.1-8B-Instruct @ revision 0e9e39f249a16976918f6564b8830bc894c89659"
+  },
+  "resources": {
+    "requests": { "cpu": "3", "memory": "12Gi" },
+    "limits": { "cpu": "4", "memory": "14Gi" },
+    "gpu": { "count": 1, "type": "NVIDIA A10G" }
+  },
+  "graceful_termination": {
+    "pre_stop": { "initiates_drain": true, "action": "stop accepting, drain in-flight generations" },
+    "termination_grace_period_seconds": 660,
+    "max_stream_duration_seconds": 600,
+    "grace_period_exceeds_max_stream_duration": true
+  },
+  "secrets": []
+}

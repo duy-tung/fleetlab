@@ -1,0 +1,14 @@
+{
+  "model": "mock-8b",
+  "messages": [
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Say hello."
+        }
+      ]
+    }
+  ]
+}

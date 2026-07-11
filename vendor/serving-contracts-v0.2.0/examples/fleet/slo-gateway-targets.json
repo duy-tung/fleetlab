@@ -1,0 +1,84 @@
+{
+  "slo_id": "slo-gateway-targets",
+  "version": "0.1.0",
+  "scope": "gateway",
+  "description": "The program's source-verified gateway targets (as of 2026-07 — re-baseline from measurement if infeasible). These are gateway-owned signals; model-level SLOs are declared only from measurement and live in separate scope=model-serving instances.",
+  "objectives": [
+    {
+      "signal": "gateway_overhead_non_queue_seconds",
+      "statistic": "p95",
+      "comparator": "<",
+      "threshold": 0.010,
+      "unit": "seconds",
+      "provenance": {
+        "basis": "source-reported",
+        "as_of": "2026-07-10",
+        "source": "program plan, serving-contracts fleet-schema requirements (source-verified gateway targets)",
+        "notes": "as of 2026-07 — re-baseline from measurement if infeasible"
+      }
+    },
+    {
+      "signal": "gateway_overhead_non_queue_seconds",
+      "statistic": "p99",
+      "comparator": "<",
+      "threshold": 0.020,
+      "unit": "seconds",
+      "provenance": {
+        "basis": "source-reported",
+        "as_of": "2026-07-10",
+        "source": "program plan, serving-contracts fleet-schema requirements (source-verified gateway targets)"
+      }
+    },
+    {
+      "signal": "cancellation_propagation_seconds",
+      "statistic": "p95",
+      "comparator": "<",
+      "threshold": 0.250,
+      "unit": "seconds",
+      "provenance": {
+        "basis": "source-reported",
+        "as_of": "2026-07-10",
+        "source": "program plan, serving-contracts fleet-schema requirements (source-verified gateway targets)"
+      },
+      "notes": "holds on the gateway+mock path (engine-side abort latency is engine-owned and excluded)"
+    },
+    {
+      "signal": "usage_settle_variance_ratio",
+      "statistic": "value",
+      "comparator": "<",
+      "threshold": 0.01,
+      "unit": "ratio",
+      "provenance": {
+        "basis": "source-reported",
+        "as_of": "2026-07-10",
+        "source": "program plan, serving-contracts fleet-schema requirements (source-verified gateway targets)"
+      },
+      "notes": "absolute variance between settled usage and client-observed token counts over the evaluation window (fault scenario fs-09 recovery criterion)"
+    },
+    {
+      "signal": "key_revocation_effect_seconds",
+      "statistic": "value",
+      "comparator": "<=",
+      "threshold": 5,
+      "unit": "seconds",
+      "provenance": {
+        "basis": "source-reported",
+        "as_of": "2026-07-10",
+        "source": "program plan, serving-contracts fleet-schema requirements (source-verified gateway targets)"
+      }
+    },
+    {
+      "signal": "config_publish_effect_seconds",
+      "statistic": "value",
+      "comparator": "<=",
+      "threshold": 5,
+      "unit": "seconds",
+      "provenance": {
+        "basis": "source-reported",
+        "as_of": "2026-07-10",
+        "source": "program plan, serving-contracts fleet-schema requirements (source-verified gateway targets)"
+      },
+      "notes": "fault scenario fs-08 abort criterion"
+    }
+  ]
+}

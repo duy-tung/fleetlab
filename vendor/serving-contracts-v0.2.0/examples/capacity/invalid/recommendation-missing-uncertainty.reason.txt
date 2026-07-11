@@ -1,0 +1,6 @@
+why-invalid: the goodput prediction is a bare point value — its predictedQuantity
+omits the required "uncertainty" object (capacity-recommendation.schema.json,
+$defs.predictedQuantity requires value + unit + uncertainty, and uncertainty requires
+lower + upper + method). Stated uncertainty is structurally mandatory: a capacity
+recommendation whose central prediction carries no interval and no method is a guess
+dressed as a number, and inferops must not apply it as an experiment.

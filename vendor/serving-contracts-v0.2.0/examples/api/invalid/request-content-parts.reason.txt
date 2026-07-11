@@ -1,0 +1,1 @@
+Array-of-parts message content (multimodal shape) is unsupported: content MUST be a string. Rejected 400 invalid_request/unsupported_value (param: messages[0].content).

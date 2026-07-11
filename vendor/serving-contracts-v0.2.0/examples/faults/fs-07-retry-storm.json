@@ -1,0 +1,28 @@
+{
+  "scenario_id": "fs-07",
+  "contract_item": 7,
+  "name": "Retry storm",
+  "injection": {
+    "description": "Induce failures on one backend while a client fleet retries aggressively (immediate retries, no backoff or jitter), attempting to amplify load through the gateway.",
+    "target": "client",
+    "method": "load-profile",
+    "parameters": { "client_retry_policy": "immediate-no-backoff", "induced_failure": "one-backend-errors" }
+  },
+  "expected_gateway_semantics": [
+    "The gateway's retry budget caps amplification: gateway-initiated upstream retries never exceed the configured budget fraction of base request rate, regardless of client behavior.",
+    "Excess offered load from client retries is handled by admission control (fs-06 semantics: 429 + Retry-After), not forwarded upstream.",
+    "All gateway retries remain pre-first-token only."
+  ],
+  "expected_client_visible_behavior": [
+    "Storming clients increasingly receive 429 + Retry-After once budgets engage.",
+    "Well-behaved clients continue to meet the latency SLO — the storm does not take down healthy capacity."
+  ],
+  "metrics_that_must_move": [
+    { "source": "gateway", "metric": "inference_retries_total", "expectation": "increases, but its rate stays at or below the configured retry-budget fraction of request rate (amplification capped)" },
+    { "source": "gateway", "metric": "inference_sheds_total", "expectation": "increases with reason=retry_budget (and/or reason=queue_full) once budgets engage" }
+  ],
+  "metrics_that_must_not_move": [
+    { "source": "gateway", "metric": "inference_backend_healthy", "expectation": "stays 1 for the non-injected backends — retry traffic does not saturate healthy capacity" }
+  ],
+  "abort_condition": "Abort the injection if upstream request rate exceeds (1 + retry-budget fraction) x offered base rate (amplification uncapped), or if a non-injected backend saturates from retry traffic."
+}

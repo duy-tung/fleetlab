@@ -1,0 +1,9 @@
+{
+  "error": {
+    "message": "Missing or invalid API key.",
+    "type": "authentication",
+    "code": null,
+    "param": null,
+    "request_id": "req_fixture_0401"
+  }
+}

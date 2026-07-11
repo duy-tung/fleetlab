@@ -27,6 +27,24 @@ Execution order: FL-T002 → FL-T003 → FL-T004 (G8 review) → {FL-T005, FL-T0
 - **Evidence:** green test run output; CI log validating against the pinned bundle tag.
 - **Integration impact:** I6 entry; satisfies fleetlab's I1 consumer obligation.
 - **Stop condition:** real inferbench files ingest cleanly.
+- **Status (2026-07-11): DONE.** Contracts bundle pinned: `serving-contracts`
+  tag `v0.2.0` @ commit `484b449` (git-archive-vendored, read-only, under
+  `vendor/serving-contracts-v0.2.0/`; recorded in `docs/interfaces.md`).
+  `fleetlab/ingest/*` validates directly against `jsonschema` (decision
+  recorded in `fleetlab/ingest/bundle.py` docstring and
+  `docs/implementation-notes.md`); the vendored `kit/contracts-validate.py`
+  remains available for CI's `make contracts-verify`. 42 golden-file tests
+  green (`tests/golden/`), covering valid / invalid / provenance-missing /
+  unsupported-field for all eight input types. Real-file stop condition:
+  the full `ib-t010`/`ib-t004`/`ib-t005`/`inference-lab evidence/i3` corpora
+  (8 canonical workloads, 48 run manifests, 48 raw-event files ~13,433
+  events, 10 benchmark results) ingest cleanly; the only two refusals are
+  the two documented aborted-session truncated JSONL files under
+  `evidence/i3/aborted/`, refused correctly (asserted explicitly in
+  `tests/golden/test_real_inferbench_ingest.py`). One deviation recorded:
+  `hardware-profile.schema.json` is GPU-centric and cannot represent the
+  CPU-only hosts actually measured so far — see `profiles/examples/README.md`
+  and `docs/implementation-notes.md`.
 
 ## FL-T003 — Core models
 - **Goal/Repo:** implement the analytic backbone in fleetlab.
@@ -38,6 +56,25 @@ Execution order: FL-T002 → FL-T003 → FL-T004 (G8 review) → {FL-T005, FL-T0
 - **Evidence:** model-validation note with cross-check numbers and error statements.
 - **Integration impact:** everything downstream (fitting, dynamics, signals, placement, cost).
 - **Stop condition:** cross-checks within stated error.
+- **Status (2026-07-11): DONE, with one cross-check honestly PENDING.**
+  `fleetlab/models/{arrival,length,token_rate,littles_law,kv_memory}.py`
+  implemented; 61 model tests green (`tests/models/`). Cross-checks:
+  Little's law holds exactly (sample-path identity) on two real raw-event
+  traces; the token-rate model's `system_output_token_rate` reproduces a
+  real benchmark-result's `output_tokens_per_second` to `rel=1e-6`; the
+  KV-memory formula matches an independently-authored real fixture
+  (`model-llama31-8b.json`, 131072 bytes/token) exactly. The KV-memory
+  formula's cross-check against a *measured engine memory metric* for
+  Qwen2.5-1.5B is recorded **PENDING** — no isolated KV-cache-memory
+  measurement exists anywhere in the currently available evidence (see
+  `docs/notes/model-validation.md` §5.2 for the full account of what was
+  checked and what's missing). Architecture parameters (28 layers, 2 KV
+  heads, 128 head_dim) were measured directly from the real GGUF checkpoint
+  via `gguf_dump.py` this session.
+
+  Stack note: FL-T003 needed only `numpy` (RNG, sampling, percentiles); no
+  `scipy` dependency was added (ADR-0001 lists it as a FL-T004 candidate for
+  profile fitting, not needed for this task's closed-form models).
 
 ## FL-T004 — Goodput/memory profiles from measurements
 - **Goal/Repo:** fit empirical profiles in fleetlab.

@@ -1,0 +1,14 @@
+{
+  "name": "golden-valid",
+  "version": "1.0.0",
+  "seed": 42,
+  "description": "SYNTHETIC golden fixture for fleetlab's ingestion tests — not real benchmark data, never used to fit profiles.",
+  "arrival_process": { "type": "open-loop-poisson", "rate_rps": 5 },
+  "input_length_distribution": { "type": "constant", "value": 100 },
+  "output_length_distribution": { "type": "constant", "value": 50 },
+  "prefix_sharing": { "ratio": 0 },
+  "cancellation": { "rate": 0 },
+  "slow_client": { "fraction": 0 },
+  "stop": { "duration_seconds": 60 },
+  "tags": ["synthetic", "golden"]
+}

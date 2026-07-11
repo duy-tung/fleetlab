@@ -1,0 +1,12 @@
+{
+  "model": "mock-8b",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Say hello."
+    }
+  ],
+  "stream_options": {
+    "include_usage": true
+  }
+}

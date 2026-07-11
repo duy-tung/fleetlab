@@ -1,0 +1,5 @@
+why-invalid: a scope=model-serving SLO whose objective carries provenance.basis
+"assumed". The schema's conditional rule (slo.schema.json, top-level if/then) requires
+every objective of a model-serving SLO to have provenance.basis "measured" — model-level
+TTFT/ITL/goodput targets are declared ONLY from measurement, never in advance. Declaring
+them by feel is exactly the fabricated default the fleet schemas forbid.

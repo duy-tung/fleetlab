@@ -1,0 +1,10 @@
+{
+  "model": "mock-8b",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Say hello."
+    }
+  ],
+  "totally_unknown_field": "x"
+}

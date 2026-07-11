@@ -1,0 +1,57 @@
+{
+  "component": "infergate",
+  "release": "0.3.0",
+  "image": {
+    "repository": "ghcr.io/duy-tung/infergate",
+    "digest": "sha256:7f3b1c9a2d4e5f60718293a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4"
+  },
+  "ports": {
+    "api": { "port": 8080, "protocol": "http" },
+    "metrics": { "port": 9090, "path": "/metrics" }
+  },
+  "env": [],
+  "config_mounts": [],
+  "probes": {
+    "startup": {
+      "endpoint": "/healthz",
+      "port": 8080,
+      "period_seconds": 2,
+      "timeout_seconds": 1,
+      "failure_threshold": 15
+    },
+    "readiness": {
+      "endpoint": "/readyz",
+      "port": 8080,
+      "period_seconds": 5,
+      "timeout_seconds": 2,
+      "failure_threshold": 2,
+      "warm_up": {
+        "ready_only_after_warm_up": true,
+        "warm_signal": "config snapshot loaded and backend probes completed"
+      }
+    },
+    "liveness": {
+      "endpoint": "/healthz",
+      "port": 8080,
+      "period_seconds": 10,
+      "timeout_seconds": 2,
+      "failure_threshold": 3
+    }
+  },
+  "model_mount": null,
+  "resources": {
+    "requests": { "cpu": "500m", "memory": "512Mi" },
+    "limits": { "cpu": "2", "memory": "1Gi" },
+    "gpu": { "count": 0 }
+  },
+  "graceful_termination": {
+    "pre_stop": {
+      "initiates_drain": true,
+      "action": "fail readiness, stop accepting, drain"
+    },
+    "termination_grace_period_seconds": 30,
+    "max_stream_duration_seconds": 600,
+    "grace_period_exceeds_max_stream_duration": false
+  },
+  "secrets": []
+}

@@ -1,0 +1,51 @@
+{
+  "slo_id": "scenario-b-llamacpp-cpu-shakedown",
+  "version": "1.0.0",
+  "scope": "model-serving",
+  "description": "Scenario B / I3 methodology-shakedown SLO for goodput@SLO computation only: thresholds are derived from same-host calibration probe maxima (x1.5 headroom) against llama.cpp on a 4-core CPU. This is NOT a production or comparison target; it exists so the goodput machinery is exercised end-to-end on real events (same honest construction as inferbench's mock-loopback-baseline SLO).",
+  "applies_to": {
+    "workload_ref": "scenario-b CPU-adapted workloads (chat-short-cpu, shared-prefix-cpu) on this host"
+  },
+  "objectives": [
+    {
+      "signal": "ttft_seconds",
+      "statistic": "max",
+      "comparator": "<=",
+      "threshold": 36,
+      "unit": "seconds",
+      "provenance": {
+        "basis": "measured",
+        "as_of": "2026-07-11",
+        "source": "measured this session from the Scenario B calibration probes through the composed inferbench->infergate->llama-server path (evidence/i3/raw/runs/): i3-chat-short-cpu-calib (chat-short-cpu-calib v1.0.0 seed 2003001, 12 ok events); i3-shared-prefix-cpu-calib (shared-prefix-cpu-calib v1.0.0 seed 2003004, 8 ok events). Threshold = measured per-request maximum x1.5 headroom, rounded up to 2 significant digits.",
+        "notes": "measured calibration maximum 23.720 s"
+      }
+    },
+    {
+      "signal": "e2e_duration_seconds",
+      "statistic": "max",
+      "comparator": "<=",
+      "threshold": 95,
+      "unit": "seconds",
+      "provenance": {
+        "basis": "measured",
+        "as_of": "2026-07-11",
+        "source": "measured this session from the Scenario B calibration probes through the composed inferbench->infergate->llama-server path (evidence/i3/raw/runs/): i3-chat-short-cpu-calib (chat-short-cpu-calib v1.0.0 seed 2003001, 12 ok events); i3-shared-prefix-cpu-calib (shared-prefix-cpu-calib v1.0.0 seed 2003004, 8 ok events). Threshold = measured per-request maximum x1.5 headroom, rounded up to 2 significant digits.",
+        "notes": "measured calibration maximum 62.874 s"
+      }
+    },
+    {
+      "signal": "max_stall_seconds",
+      "statistic": "max",
+      "comparator": "<=",
+      "threshold": 30,
+      "unit": "seconds",
+      "provenance": {
+        "basis": "measured",
+        "as_of": "2026-07-11",
+        "source": "measured this session from the Scenario B calibration probes through the composed inferbench->infergate->llama-server path (evidence/i3/raw/runs/): i3-chat-short-cpu-calib (chat-short-cpu-calib v1.0.0 seed 2003001, 12 ok events); i3-shared-prefix-cpu-calib (shared-prefix-cpu-calib v1.0.0 seed 2003004, 8 ok events). Threshold = measured per-request maximum x1.5 headroom, rounded up to 2 significant digits.",
+        "notes": "measured calibration maximum 19.813 s"
+      }
+    }
+  ],
+  "notes": "Per-request evaluation: statistic 'max' objectives read as per-request bounds (how the analyzer applies them). max_stall_seconds doubles as the stall-rate threshold. Re-derive when host, engine build, model, or rates change."
+}

@@ -1,0 +1,39 @@
+{
+  "name": "shared-prefix",
+  "version": "0.1.0",
+  "seed": 20260710,
+  "description": "High prefix reuse: 90% of requests share a long common prefix in groups of 32 (system-prompt / few-shot template reuse). Exercises engine prefix caching. NON-NORMATIVE example fixture; canonical suite owned by inferbench.",
+  "arrival_process": {
+    "type": "open-loop-poisson",
+    "rate_rps": 6
+  },
+  "input_length_distribution": {
+    "type": "normal",
+    "mean": 2200,
+    "stddev": 300,
+    "min": 1900,
+    "max": 4096
+  },
+  "output_length_distribution": {
+    "type": "normal",
+    "mean": 200,
+    "stddev": 80,
+    "min": 16,
+    "max": 512
+  },
+  "prefix_sharing": {
+    "ratio": 0.9,
+    "shared_prefix_length_tokens": 1800,
+    "group_size": 32
+  },
+  "cancellation": {
+    "rate": 0
+  },
+  "slow_client": {
+    "fraction": 0
+  },
+  "stop": {
+    "duration_seconds": 600
+  },
+  "tags": ["prefix-cache"]
+}

@@ -1,0 +1,5 @@
+why-invalid: the rate claims basis "source-reported" but names no source. The
+provenance conditional (cost-profile.schema.json, $defs.provenance if/then) requires
+"source" whenever basis is measured or source-reported — a value that claims to come
+from somewhere must say where, or it is unverifiable. Only basis=assumed may omit
+source (and must then be an explicit, reasoned assumption).

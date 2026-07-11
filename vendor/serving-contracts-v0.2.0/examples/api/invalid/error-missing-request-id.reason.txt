@@ -1,0 +1,1 @@
+Error envelope without error.request_id. The request-ID contract requires the effective request ID in every error body; this envelope MUST fail validation.

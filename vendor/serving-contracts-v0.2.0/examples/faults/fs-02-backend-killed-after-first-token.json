@@ -1,0 +1,26 @@
+{
+  "scenario_id": "fs-02",
+  "contract_item": 2,
+  "name": "Backend killed after first token",
+  "injection": {
+    "description": "Kill one engine backend process/pod (SIGKILL, no drain) while it is mid-generation on streams that have already delivered at least one token.",
+    "target": "backend",
+    "method": "process-kill",
+    "parameters": { "signal": "SIGKILL", "phase": "post-first-token" }
+  },
+  "expected_gateway_semantics": [
+    "Each affected stream receives the standardized mid-stream SSE error event (error.type=upstream_error) followed by stream close — never a retry (Contract 1: post-first-token retry would duplicate sampled output and double-bill).",
+    "Tokens already relayed before the failure are settled as partial usage under the stream's request ID (partial output is billable)."
+  ],
+  "expected_client_visible_behavior": [
+    "Mid-stream SSE error event carrying the request ID, then stream close; content received before the failure is retained; the platform never reconnects or re-generates on the client's behalf."
+  ],
+  "metrics_that_must_move": [
+    { "source": "gateway", "metric": "inference_requests_total", "expectation": "increases with status_class=5xx, error_class=upstream_error for the interrupted streams" },
+    { "source": "gateway", "metric": "inference_usage_tokens_total", "expectation": "direction=output increases by the partial token counts of the interrupted streams (settled, not discarded)" }
+  ],
+  "metrics_that_must_not_move": [
+    { "source": "gateway", "metric": "inference_retries_total", "expectation": "does not increase for the interrupted streams — no retry after first token, ever" }
+  ],
+  "abort_condition": "Abort the injection if any interrupted stream is re-sent upstream (duplicate generation observed), or if settled usage for interrupted streams diverges more than 1% from client-observed token counts."
+}

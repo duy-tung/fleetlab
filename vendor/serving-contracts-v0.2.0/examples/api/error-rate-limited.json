@@ -1,0 +1,9 @@
+{
+  "error": {
+    "message": "Rate limit exceeded for tenant tier 'gold'. Retry after the interval given in Retry-After.",
+    "type": "rate_limited",
+    "code": null,
+    "param": null,
+    "request_id": "req_fixture_0429"
+  }
+}

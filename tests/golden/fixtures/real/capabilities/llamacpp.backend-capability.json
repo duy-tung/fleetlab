@@ -1,0 +1,86 @@
+{
+  "engine": {
+    "name": "llamacpp",
+    "version": "1 (8f114a9)",
+    "commit": "8f114a9b573b69035299f9b924047f53c1e22c7e"
+  },
+  "streaming": {
+    "supported": true,
+    "protocol": "sse"
+  },
+  "usage_in_stream": {
+    "supported": true,
+    "mechanism": "stream_options.include_usage=true yields an OpenAI-conformant extra final chunk with choices:[] and a usage object (observed). The chunk also carries non-standard extras (timings, usage.prompt_tokens_details) that the adapter strips before relay."
+  },
+  "cancellation": {
+    "mechanism": "http-connection-close",
+    "propagation_note": "Closing the upstream HTTP connection makes llama-server log 'srv stop: cancel task' and free the slot; the abort is noticed at the next decode-batch boundary (observed release: single-digit ms mid-stream in decode; up to ~1.3 s when canceled inside a 2048-token prefill batch of a ~3600-token prompt). Teardown must be a real TCP FIN/RST — a half-closed socket keeps the slot generating to natural completion (probed 2026-07-10).",
+    "release_observability": {
+      "observable": true,
+      "signals": [
+        "running_requests",
+        "log:cancel task",
+        "endpoint:/slots is_processing"
+      ]
+    }
+  },
+  "metrics": {
+    "endpoint": "/metrics",
+    "format": "prometheus",
+    "name_mapping": {
+      "as_of": "2026-07-10",
+      "verified_against_version": "8f114a9b573b69035299f9b924047f53c1e22c7e",
+      "entries": {
+        "queue_waiting_requests": "llamacpp:requests_deferred",
+        "running_requests": "llamacpp:requests_processing",
+        "kv_cache_usage_ratio": null,
+        "prefix_cache_hit_rate": null,
+        "generation_tokens_total": "llamacpp:tokens_predicted_total",
+        "prompt_tokens_total": "llamacpp:prompt_tokens_total",
+        "generation_tokens_per_second": "llamacpp:predicted_tokens_seconds",
+        "prompt_tokens_per_second": "llamacpp:prompt_tokens_seconds",
+        "decode_calls_total": "llamacpp:n_decode_total",
+        "busy_slots_per_decode": "llamacpp:n_busy_slots_per_decode"
+      }
+    }
+  },
+  "tokenizer": {
+    "id": "gguf-embedded",
+    "revision": "as-packaged-in-checkpoint"
+  },
+  "context_limit_tokens": 4096,
+  "concurrency_hints": {
+    "max_concurrent_requests": 2,
+    "max_batched_tokens": null
+  },
+  "prefix_cache": {
+    "supported": true,
+    "observability": {
+      "observable": true,
+      "signals": [
+        "response:usage.prompt_tokens_details.cached_tokens",
+        "log:selected slot by LCP similarity"
+      ]
+    }
+  },
+  "quantization": {
+    "active": null,
+    "methods_supported": [
+      "gguf-f32",
+      "gguf-f16",
+      "gguf-q8_0",
+      "gguf-q6_k",
+      "gguf-q5_k_m",
+      "gguf-q4_k_m",
+      "gguf-q4_0"
+    ]
+  },
+  "priority": {
+    "supported": false
+  },
+  "provenance": {
+    "as_of": "2026-07-10",
+    "method": "probed",
+    "notes": "Probed against a locally built llama-server (commit 8f114a9, 'version: 1 (8f114a9)', GNU 13.3.0, Linux x86_64) serving an 8.9 MB random-weight llama-architecture GGUF (F32, llama SPM vocab, fallback ChatML template) in the IG-T005 reference configuration: -np 2 -c 8192 --metrics --slots (2 slots x 4096 ctx -> context_limit_tokens=4096 per request, max_concurrent_requests=2; requests beyond slot count are deferred, visible as llamacpp:requests_deferred). Facts observed and relied on by the adapter: unknown request fields silently accepted (never rejected) - the gateway's strict validation is the contract boundary; 'model' field ignored, responses echo the loaded alias (adapter normalizes); non-standard response extras timings / system_fingerprint / usage.prompt_tokens_details (adapter strips); streaming 'created' stamped per chunk (std::time(0) at emit, server-task.cpp) so it drifts across a wall-clock second mid-stream (adapter pins the first chunk's value); /metrics exposes exactly the 11 unlabeled 'llamacpp:'-prefixed series in name_mapping (colon in metric names - some scrapers dislike this) with NO kv-cache-usage or per-request latency series - per-request timings come from the stripped timings field or /slots; prompt caching on by default (cached_tokens > 0 on repeats; disable server-side with --no-slots-cache or per request with cache_prompt:false, llama.cpp-native param). max_batched_tokens: null - n_batch is 2048 by default but was not verified against this running build. quantization.methods_supported is source-reported (GGUF loader), not probed; active=null because the probe model is unquantized F32. Tiny-model artifact, not an engine capability: random weights occasionally emit invalid UTF-8 that the server's chat-output parser rejects with HTTP 500 ('peg-native format') at end of generation, measured ~3% of generations. Engine metric names and endpoint shapes are volatile: as of 2026-07 - re-verify at use time."
+  }
+}

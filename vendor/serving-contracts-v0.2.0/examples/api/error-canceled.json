@@ -1,0 +1,9 @@
+{
+  "error": {
+    "message": "Request canceled by client disconnect; tokens generated before cancellation are billable and settled under this request ID.",
+    "type": "canceled",
+    "code": null,
+    "param": null,
+    "request_id": "req_fixture_0499"
+  }
+}

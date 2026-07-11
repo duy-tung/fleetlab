@@ -1,0 +1,17 @@
+{
+  "profile_id": "hardware-a10g-g5-xlarge",
+  "version": "0.1.0",
+  "description": "A10G / g5.xlarge with bare spec numbers and no provenance.",
+  "gpu": {
+    "model": "NVIDIA A10G",
+    "count_per_node": 1,
+    "vram_gb": 24,
+    "memory_bandwidth_gbps": 600
+  },
+  "node": {
+    "instance_type": "g5.xlarge",
+    "cloud": "aws",
+    "vcpus": 4,
+    "ram_gb": 16
+  }
+}

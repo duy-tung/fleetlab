@@ -1,0 +1,63 @@
+{
+  "slo_id": "slo-chat-interactive",
+  "version": "0.1.0",
+  "scope": "model-serving",
+  "description": "Interactive chat SLO for Llama-3.1-8B on the baseline topology. Model-level targets are declared ONLY from measurement (schema-enforced: every objective's provenance.basis is 'measured'). This is the SLO the benchmark-result example's goodput block references (slo-chat-interactive @ 0.1.0).",
+  "applies_to": {
+    "model_profile_ref": "model-llama31-8b",
+    "workload_ref": "chat-short"
+  },
+  "objectives": [
+    {
+      "signal": "ttft_seconds",
+      "statistic": "p95",
+      "comparator": "<",
+      "threshold": 0.5,
+      "unit": "seconds",
+      "provenance": {
+        "basis": "measured",
+        "as_of": "2026-07-08",
+        "source": "baseline calibration run set run-2026-07-08-chatshort-vllm-a10g-cal (pooled p95 0.42 at 8 rps; threshold set at measured p95 + headroom)",
+        "notes": "example fixture; run id illustrative"
+      }
+    },
+    {
+      "signal": "itl_seconds",
+      "statistic": "p99",
+      "comparator": "<",
+      "threshold": 0.15,
+      "unit": "seconds",
+      "provenance": {
+        "basis": "measured",
+        "as_of": "2026-07-08",
+        "source": "baseline calibration run set run-2026-07-08-chatshort-vllm-a10g-cal (pooled p99 0.11)"
+      }
+    },
+    {
+      "signal": "max_stall_seconds",
+      "statistic": "value",
+      "comparator": "<",
+      "threshold": 1.0,
+      "unit": "seconds",
+      "provenance": {
+        "basis": "measured",
+        "as_of": "2026-07-08",
+        "source": "baseline calibration run set run-2026-07-08-chatshort-vllm-a10g-cal (per-request max stall p99 0.86)"
+      },
+      "notes": "per-request stall bound; the goodput-critique rule reports stall rate adjacent to goodput in every result"
+    },
+    {
+      "signal": "e2e_duration_seconds",
+      "statistic": "p95",
+      "comparator": "<",
+      "threshold": 10,
+      "unit": "seconds",
+      "provenance": {
+        "basis": "measured",
+        "as_of": "2026-07-08",
+        "source": "baseline calibration run set run-2026-07-08-chatshort-vllm-a10g-cal (pooled p95 9.3)"
+      }
+    }
+  ],
+  "extra_undeclared_field": "should be rejected"
+}

@@ -1,0 +1,7 @@
+why-invalid: the metrics_that_must_move entry omits the required "source" field
+(gateway/client/engine/platform). The source is what makes the metric reference
+checkable: gateway/client names must come from the Contract 2 vocabulary and engine
+signals must be canonical keys resolved via the backend-capability name_mapping.
+This fixture also demonstrates WHY the rule exists: it hardcodes the engine-native
+name "vllm:num_requests_waiting", which varies by engine version and must never be
+hardcoded (it should be source=engine, metric=queue_waiting_requests).

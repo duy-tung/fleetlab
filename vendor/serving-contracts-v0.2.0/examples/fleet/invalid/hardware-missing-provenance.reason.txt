@@ -1,0 +1,7 @@
+why-invalid: THE provenance-missing negative. Every quantitative fact in a fleet
+profile must be a provenanced value object ({value, provenance}); this fixture gives
+vram_gb, memory_bandwidth_gbps, vcpus, and ram_gb as bare numbers, which the schema
+rejects (hardware-profile.schema.json: provenancedNumber/provenancedInteger require
+"value" AND "provenance"). Provenance is mandatory and structural — a number without
+basis (measured / source-reported / assumed) + date is a fabricated default and is
+not expressible in the contract.

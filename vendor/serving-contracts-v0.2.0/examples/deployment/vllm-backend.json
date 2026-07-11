@@ -1,0 +1,83 @@
+{
+  "component": "vllm-backend",
+  "release": "0.9.1",
+  "image": {
+    "repository": "docker.io/vllm/vllm-openai",
+    "tag": "v0.9.1",
+    "digest": "sha256:0a1b2c3d4e5f60718293a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5"
+  },
+  "ports": {
+    "api": { "port": 8000, "protocol": "http" },
+    "metrics": { "port": 8000, "path": "/metrics" }
+  },
+  "env": [
+    { "name": "VLLM_MODEL_PATH", "value": "/models/llama-3.1-8b-instruct", "purpose": "served checkpoint location (see model_mount)" },
+    { "name": "HF_TOKEN", "from_secret": "hf-model-pull-token", "purpose": "checkpoint pull at volume-priming time only; not needed at serve time when the volume is pre-primed" }
+  ],
+  "config_mounts": [],
+  "probes": {
+    "startup": {
+      "endpoint": "/health",
+      "port": 8000,
+      "period_seconds": 10,
+      "timeout_seconds": 5,
+      "failure_threshold": 30
+    },
+    "readiness": {
+      "endpoint": "/health",
+      "port": 8000,
+      "period_seconds": 10,
+      "timeout_seconds": 5,
+      "failure_threshold": 2,
+      "warm_up": {
+        "ready_only_after_warm_up": true,
+        "warm_signal": "model weights fully loaded and engine initialization complete (first successful /v1/models response after load); readiness is false for the entire load window so no traffic reaches a cold replica (fault scenario fs-11)",
+        "expected_warm_up_seconds": 180
+      }
+    },
+    "liveness": {
+      "endpoint": "/health",
+      "port": 8000,
+      "initial_delay_seconds": 0,
+      "period_seconds": 15,
+      "timeout_seconds": 5,
+      "failure_threshold": 4
+    }
+  },
+  "model_mount": {
+    "path": "/models/llama-3.1-8b-instruct",
+    "volume": {
+      "name": "model-cache",
+      "type": "persistent-volume-claim",
+      "read_only": true
+    },
+    "expected_content": "meta-llama/Llama-3.1-8B-Instruct @ revision 0e9e39f249a16976918f6564b8830bc894c89659 (matches model-profile model-llama31-8b; comparability pin)"
+  },
+  "resources": {
+    "requests": { "cpu": "3", "memory": "12Gi" },
+    "limits": { "cpu": "4", "memory": "14Gi" },
+    "gpu": {
+      "count": 1,
+      "type": "NVIDIA A10G",
+      "hardware_profile_ref": "hardware-a10g-g5-xlarge"
+    }
+  },
+  "graceful_termination": {
+    "pre_stop": {
+      "initiates_drain": true,
+      "action": "engine stops accepting new requests (gateway routing already shifted by readiness=false); in-flight generations run to completion"
+    },
+    "termination_grace_period_seconds": 660,
+    "max_stream_duration_seconds": 600,
+    "grace_period_exceeds_max_stream_duration": true
+  },
+  "secrets": [
+    {
+      "name": "hf-model-pull-token",
+      "purpose": "authenticated checkpoint download when priming the model volume",
+      "delivery": "env",
+      "required": false
+    }
+  ],
+  "notes": "Example fixture; digest illustrative, engine version matches the capability descriptor examples (as of 2026-07 — re-verify at use time). startup probe budget: 10s x 30 = 300s > expected_warm_up_seconds=180, so liveness never kills a loading replica (no restart loops, fs-11)."
+}

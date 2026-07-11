@@ -1,0 +1,27 @@
+{
+  "scenario_id": "fs-09",
+  "contract_item": 9,
+  "name": "Usage database failure",
+  "injection": {
+    "description": "Make the usage/settlement database unavailable (kill the instance or partition it from the gateway) during steady traffic, then restore it.",
+    "target": "database",
+    "method": "process-kill-or-partition",
+    "parameters": { "duration_seconds": 300 }
+  },
+  "expected_gateway_semantics": [
+    "Request serving is unaffected: admission, routing, and streaming never block on settlement — settlement is asynchronous and off the request path.",
+    "Usage records accumulate in a bounded backlog keyed by request ID during the outage.",
+    "After recovery the backlog drains idempotently: the request ID is the idempotency key for usage settlement (Contract 1), so replays neither double-bill nor lose records."
+  ],
+  "expected_client_visible_behavior": [
+    "None. Latency, error rate, and streaming behavior are indistinguishable from no-fault operation throughout the outage and the drain."
+  ],
+  "metrics_that_must_move": [
+    { "source": "gateway", "metric": "inference_usage_tokens_total", "expectation": "settled token counters stall during the outage, then catch up after recovery until settle variance vs client-observed counts is < 1% (SLO signal usage_settle_variance_ratio)" }
+  ],
+  "metrics_that_must_not_move": [
+    { "source": "gateway", "metric": "inference_requests_total", "expectation": "2xx rate unchanged through the outage — serving never depends on the usage database" },
+    { "source": "gateway", "metric": "inference_e2e_duration_seconds", "expectation": "p95/p99 unchanged — no request-path stalls on settlement writes" }
+  ],
+  "abort_condition": "Abort the injection (and restore the database immediately) if request latency or error rate moves with the outage, or if the settlement backlog exceeds its configured bound (records at risk of loss)."
+}

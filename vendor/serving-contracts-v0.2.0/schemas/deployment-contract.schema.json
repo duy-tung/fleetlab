@@ -1,0 +1,282 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/duy-tung/serving-contracts/schemas/deployment-contract.schema.json",
+  "title": "Deployment contract (Contract 5)",
+  "description": "Deployment descriptor published per component release (infergate publishes one per release; inferops consumes it; inference-lab pins it). Normative. It declares HOW a component is deployed and operated: pinned image, ports, environment and config mounts, probe semantics (including warm-up-aware readiness: readiness MUST be false during model load/warm-up), model mount, resources including GPU count, graceful termination (preStop drain hook; termination grace period strictly greater than the max stream duration), and secret EXPECTATIONS (names and purposes only — never values). It is a contract about operational behavior, not a Kubernetes manifest; inferops derives manifests from it.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "component",
+    "release",
+    "image",
+    "ports",
+    "env",
+    "config_mounts",
+    "probes",
+    "model_mount",
+    "resources",
+    "graceful_termination",
+    "secrets"
+  ],
+  "properties": {
+    "component": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Component this descriptor deploys (e.g. infergate, vllm-backend, mock-backend)."
+    },
+    "release": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Component release version this descriptor was published for (a descriptor is published per release)."
+    },
+    "image": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "digest"],
+      "description": "Container image pin. The DIGEST is the pin; tags are informative only and MUST NOT be the deployment reference.",
+      "properties": {
+        "repository": { "type": "string", "minLength": 1 },
+        "tag": { "type": "string", "description": "Informative only; deployments resolve by digest." },
+        "digest": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]{64}$",
+          "description": "Content digest the deployment MUST run."
+        }
+      }
+    },
+    "ports": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["api", "metrics"],
+      "description": "Named ports. The API port serves Contract 1; the metrics port serves the Contract 2 vocabulary.",
+      "properties": {
+        "api": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["port"],
+          "properties": {
+            "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+            "protocol": { "enum": ["http", "https"] }
+          }
+        },
+        "metrics": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["port", "path"],
+          "properties": {
+            "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+            "path": { "type": "string", "pattern": "^/" }
+          }
+        }
+      }
+    },
+    "env": {
+      "type": "array",
+      "description": "Environment variables the component expects. Each entry is either a literal value or a reference to a secret declared under 'secrets' (by name). Secret VALUES never appear in this descriptor.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name"],
+        "properties": {
+          "name": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$" },
+          "value": { "type": "string", "description": "Literal, non-secret value." },
+          "from_secret": { "type": "string", "minLength": 1, "description": "Name of an entry under 'secrets' (delivery=env) supplying this variable." },
+          "purpose": { "type": "string" }
+        },
+        "oneOf": [
+          { "required": ["value"] },
+          { "required": ["from_secret"] }
+        ]
+      }
+    },
+    "config_mounts": {
+      "type": "array",
+      "description": "Configuration files/directories mounted into the container. May be empty when the component is configured by env only.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "mount_path", "purpose"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "mount_path": { "type": "string", "pattern": "^/" },
+          "purpose": { "type": "string", "minLength": 1 },
+          "reload_semantics": { "type": "string", "description": "How config changes take effect (e.g. atomic snapshot swap without dropping streams — fault scenario fs-08)." }
+        }
+      }
+    },
+    "probes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["startup", "readiness", "liveness"],
+      "description": "Probe semantics. NORMATIVE: readiness is warm-up-aware — it MUST report false during model load/warm-up so no traffic arrives before the component is warm (fault scenario fs-11); the startup probe budget (period_seconds x failure_threshold) MUST cover worst-case model load so liveness never kills a loading replica (no restart loops).",
+      "properties": {
+        "startup": { "$ref": "#/$defs/probe" },
+        "readiness": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["endpoint", "port", "period_seconds", "timeout_seconds", "failure_threshold", "warm_up"],
+          "properties": {
+            "endpoint": { "type": "string", "pattern": "^/" },
+            "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+            "initial_delay_seconds": { "type": "integer", "minimum": 0 },
+            "period_seconds": { "type": "integer", "minimum": 1 },
+            "timeout_seconds": { "type": "integer", "minimum": 1 },
+            "failure_threshold": { "type": "integer", "minimum": 1 },
+            "success_threshold": { "type": "integer", "minimum": 1 },
+            "warm_up": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["ready_only_after_warm_up", "warm_signal"],
+              "description": "Warm-up-aware readiness (REQUIRED): the descriptor MUST state what 'warm' means for this component and attest that readiness is gated on it.",
+              "properties": {
+                "ready_only_after_warm_up": {
+                  "const": true,
+                  "description": "NORMATIVE attestation: readiness reports false until warm_signal holds. A descriptor without this gate is non-conformant."
+                },
+                "warm_signal": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Concrete condition that defines warm (e.g. model weights loaded and first inference completed; config snapshot loaded and backend probes completed)."
+                },
+                "expected_warm_up_seconds": {
+                  "type": "number",
+                  "exclusiveMinimum": 0,
+                  "description": "Expected worst-case warm-up duration; the startup probe budget MUST cover it."
+                }
+              }
+            }
+          }
+        },
+        "liveness": { "$ref": "#/$defs/probe" }
+      }
+    },
+    "model_mount": {
+      "description": "Model artifact mount. REQUIRED for components that serve a model; null is permitted ONLY for components that serve no model (e.g. the gateway).",
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["path", "volume", "expected_content"],
+          "properties": {
+            "path": { "type": "string", "pattern": "^/" },
+            "volume": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["name", "type"],
+              "properties": {
+                "name": { "type": "string", "minLength": 1 },
+                "type": { "type": "string", "minLength": 1, "description": "Volume kind expected (e.g. persistent-volume-claim, host-path, image-baked)." },
+                "read_only": { "type": "boolean" }
+              }
+            },
+            "expected_content": {
+              "type": "string",
+              "minLength": 1,
+              "description": "What must be present at the mount (checkpoint id + revision), pinning the model identity for the benchmark comparability rule."
+            }
+          }
+        }
+      ]
+    },
+    "resources": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requests", "limits", "gpu"],
+      "description": "Resource requests/limits including GPU count (0 for GPU-free components such as the gateway — basic development and CI never require a GPU).",
+      "properties": {
+        "requests": { "$ref": "#/$defs/cpuMemory" },
+        "limits": { "$ref": "#/$defs/cpuMemory" },
+        "gpu": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["count"],
+          "properties": {
+            "count": { "type": "integer", "minimum": 0 },
+            "type": { "type": "string", "description": "GPU model expected (e.g. NVIDIA A10G); cross-reference a hardware-profile via hardware_profile_ref where one exists." },
+            "hardware_profile_ref": { "type": "string", "description": "profile_id of the hardware-profile this deployment targets." }
+          }
+        }
+      }
+    },
+    "graceful_termination": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pre_stop",
+        "termination_grace_period_seconds",
+        "max_stream_duration_seconds",
+        "grace_period_exceeds_max_stream_duration"
+      ],
+      "description": "Graceful termination semantics (fault scenarios fs-05/fs-12): a preStop drain hook stops acceptance and lets accepted streams complete; the termination grace period MUST be strictly greater than the max stream duration so no in-flight stream is force-killed.",
+      "properties": {
+        "pre_stop": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["initiates_drain", "action"],
+          "properties": {
+            "initiates_drain": {
+              "const": true,
+              "description": "NORMATIVE: the preStop hook MUST initiate drain — readiness goes false, no new requests are accepted, in-flight streams run to completion."
+            },
+            "action": { "type": "string", "minLength": 1, "description": "What the hook does (e.g. call /admin drain endpoint; sleep for endpoint-removal propagation then signal drain)." }
+          }
+        },
+        "termination_grace_period_seconds": { "type": "integer", "exclusiveMinimum": 0 },
+        "max_stream_duration_seconds": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "The component-enforced upper bound on any single stream's duration."
+        },
+        "grace_period_exceeds_max_stream_duration": {
+          "const": true,
+          "description": "NORMATIVE validation rule, encoded as a required attestation because JSON Schema cannot compare sibling numerics: termination_grace_period_seconds MUST be strictly greater than max_stream_duration_seconds (plus drain overhead). The publisher asserts it here; validators that can compare numbers SHOULD additionally enforce the arithmetic, and a descriptor where the arithmetic does not hold is non-conformant even if this field is present."
+        }
+      }
+    },
+    "secrets": {
+      "type": "array",
+      "description": "Secret EXPECTATIONS: what secrets must exist and why — names, purposes, delivery. Values, key material, and tokens MUST NOT appear anywhere in this descriptor (security policy). May be empty.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "purpose", "delivery", "required"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "purpose": { "type": "string", "minLength": 1 },
+          "delivery": { "enum": ["env", "file"] },
+          "mount_path": { "type": "string", "pattern": "^/", "description": "Required when delivery=file." },
+          "required": { "type": "boolean", "description": "false = the component starts without it (degraded mode stated in purpose)." }
+        },
+        "if": { "properties": { "delivery": { "const": "file" } }, "required": ["delivery"] },
+        "then": { "required": ["mount_path"] }
+      }
+    },
+    "notes": { "type": "string" }
+  },
+  "$defs": {
+    "probe": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["endpoint", "port", "period_seconds", "timeout_seconds", "failure_threshold"],
+      "properties": {
+        "endpoint": { "type": "string", "pattern": "^/" },
+        "port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "initial_delay_seconds": { "type": "integer", "minimum": 0 },
+        "period_seconds": { "type": "integer", "minimum": 1 },
+        "timeout_seconds": { "type": "integer", "minimum": 1 },
+        "failure_threshold": { "type": "integer", "minimum": 1 },
+        "success_threshold": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "cpuMemory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cpu", "memory"],
+      "properties": {
+        "cpu": { "type": "string", "pattern": "^[0-9]+(\\.[0-9]+)?m?$", "description": "Kubernetes CPU quantity (cores or millicores, e.g. 2, 500m)." },
+        "memory": { "type": "string", "pattern": "^[0-9]+(\\.[0-9]+)?(Ki|Mi|Gi|Ti)$", "description": "Kubernetes memory quantity (e.g. 4Gi)." }
+      }
+    }
+  }
+}

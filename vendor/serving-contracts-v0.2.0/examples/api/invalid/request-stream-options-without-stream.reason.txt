@@ -1,0 +1,1 @@
+stream_options is only valid alongside stream: true. MUST be rejected 400 invalid_request/conflicting_parameters (param: stream_options). Violates dependentSchemas.

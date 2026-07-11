@@ -1,0 +1,8 @@
+{
+  "error": {
+    "message": "Missing or invalid API key.",
+    "type": "authentication",
+    "code": null,
+    "param": null
+  }
+}

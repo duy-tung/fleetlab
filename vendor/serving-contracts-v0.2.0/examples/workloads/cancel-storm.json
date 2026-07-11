@@ -1,0 +1,45 @@
+{
+  "name": "cancel-storm",
+  "version": "0.1.0",
+  "seed": 20260710,
+  "description": "60% of requests are canceled by the client early in the stream. Exercises Contract 1 cancellation propagation and engine resource release; tokens emitted before cancel are billable. NON-NORMATIVE example fixture; canonical suite owned by inferbench.",
+  "arrival_process": {
+    "type": "open-loop-poisson",
+    "rate_rps": 6
+  },
+  "input_length_distribution": {
+    "type": "normal",
+    "mean": 250,
+    "stddev": 100,
+    "min": 16,
+    "max": 1024
+  },
+  "output_length_distribution": {
+    "type": "normal",
+    "mean": 800,
+    "stddev": 300,
+    "min": 128,
+    "max": 2048
+  },
+  "prefix_sharing": {
+    "ratio": 0
+  },
+  "cancellation": {
+    "rate": 0.6,
+    "point": {
+      "trigger": "elapsed-seconds",
+      "distribution": {
+        "type": "uniform",
+        "min": 0.5,
+        "max": 3
+      }
+    }
+  },
+  "slow_client": {
+    "fraction": 0
+  },
+  "stop": {
+    "duration_seconds": 600
+  },
+  "tags": ["cancellation", "fault-adjacent"]
+}

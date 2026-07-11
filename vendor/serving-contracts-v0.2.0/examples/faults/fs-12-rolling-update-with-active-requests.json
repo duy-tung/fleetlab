@@ -1,0 +1,28 @@
+{
+  "scenario_id": "fs-12",
+  "contract_item": 12,
+  "name": "Rolling update with active requests",
+  "injection": {
+    "description": "Perform a rolling update of the serving deployment (gateway instances and/or engine backends) while streams are active and load is steady.",
+    "target": "orchestration",
+    "method": "rolling-update",
+    "parameters": { "strategy": "one-at-a-time", "respect_pdb": true }
+  },
+  "expected_gateway_semantics": [
+    "Each terminating instance follows fs-05 drain semantics: preStop drain hook, readiness false, accepted streams complete within the grace period (grace > max stream duration per the deployment contract).",
+    "Each new instance follows fs-11 warm-up-aware readiness: no traffic before warm, no restart loops.",
+    "Aggregate ready capacity never falls below the disruption budget; the rollout completes with zero client-visible errors."
+  ],
+  "expected_client_visible_behavior": [
+    "Zero client-visible errors across the entire rollout: in-flight streams complete, new requests land only on ready instances, latency stays within SLO."
+  ],
+  "metrics_that_must_move": [
+    { "source": "gateway", "metric": "inference_requests_in_flight", "expectation": "drains to 0 per terminating instance in sequence; aggregate never drops to 0" },
+    { "source": "gateway", "metric": "inference_backend_healthy", "expectation": "transitions 1->0 (drain) and 0->1 (warm) per instance in rollout order, never all at once" }
+  ],
+  "metrics_that_must_not_move": [
+    { "source": "gateway", "metric": "inference_requests_total", "expectation": "no status_class=5xx increase attributable to the rollout" },
+    { "source": "client", "metric": "client_inference_ttft_seconds", "expectation": "p95 stays within SLO throughout the rollout" }
+  ],
+  "abort_condition": "Abort (pause the rollout, keep current instances) if any client-visible error is attributable to the rollout, or if ready capacity falls below the disruption-budget floor."
+}

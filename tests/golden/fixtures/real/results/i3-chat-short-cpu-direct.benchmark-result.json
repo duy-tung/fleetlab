@@ -1,0 +1,89 @@
+{
+  "result_id": "i3-chat-short-cpu-direct",
+  "created_at": "2026-07-11T06:28:19Z",
+  "links": {
+    "run_manifests": [
+      "evidence/i3/raw/runs/chat-short-cpu-direct/manifest.json"
+    ],
+    "raw_events": [
+      "evidence/i3/raw/runs/chat-short-cpu-direct/events.jsonl"
+    ]
+  },
+  "throughput": {
+    "requests_per_second": 0.06991744865839379,
+    "output_tokens_per_second": 7.79773767676253,
+    "total_requests": 36,
+    "total_output_tokens": 4015
+  },
+  "pooled_percentiles": {
+    "method": "pooled-raw-events",
+    "pooled_event_count": 36,
+    "tables": {
+      "ttft_seconds": {
+        "n": 36,
+        "p50": 2.4861807825,
+        "p90": 8.9587341465,
+        "p95": 9.7050606955,
+        "p99": 13.890496150199994,
+        "max": 15.443166797,
+        "mean": 3.6896727469722226
+      },
+      "e2e_duration_seconds": {
+        "n": 36,
+        "p50": 10.363867998123169,
+        "p90": 21.09973454475403,
+        "p95": 24.881027460098267,
+        "p99": 29.44221729040145,
+        "max": 31.662331104278564,
+        "mean": 12.432972172896067
+      },
+      "itl_seconds": {
+        "n": 3964,
+        "p50": 0.0744137565,
+        "p90": 0.0845517685,
+        "p95": 0.0867948286,
+        "p99": 0.09356486552,
+        "max": 3.262488365,
+        "mean": 0.07914004288496466,
+        "p999": 2.8829973838220253
+      },
+      "max_stall_seconds": {
+        "n": 36,
+        "p50": 0.0924293675,
+        "p90": 2.844900053,
+        "p95": 3.0418782354999996,
+        "p99": 3.2157485102999996,
+        "max": 3.262488365,
+        "mean": 0.9157293816666665
+      }
+    }
+  },
+  "goodput": {
+    "slo_ref": {
+      "id": "scenario-b-llamacpp-cpu-shakedown",
+      "version": "1.0.0"
+    },
+    "requests_per_second_meeting_slo": 0.06991744865839379,
+    "ratio": 1.0,
+    "shed_rate": 0.0,
+    "stall_rate": 0.0,
+    "stall_threshold_seconds": 30.0
+  },
+  "knee_estimate": null,
+  "cost": null,
+  "validity": {
+    "warm_up_handling": "manifest warm-up policy 'discard-requests' (4 requests per repetition, ordered by scheduled_send_ts): 4 events excluded, 36 kept (i3-chat-short-cpu-direct/rep1: 4 excluded)",
+    "run_count": 1,
+    "threats_to_validity": [
+      "single-host client+server co-location: llama-server (-t 4), infergate, and inferbench share one 4-core host; measured interval-CPU during this run: inferbench mean 0.2% / max 0.6% of one core, llama-server mean 70.0% / max 398.0% of one core. Client-side timing competes with the engine for CPU.",
+      "single repetition, small sample (CPU-adapted rate): bootstrap CIs are wide and cross-run dispersion does not exist; numbers are a methodology shakedown, not a performance claim",
+      "arrival rate CPU-adapted from same-day single-stream calibration (evidence/i3/logs/rate-calibration.log); results characterize this host + engine build + quantized model only",
+      "SLO thresholds derived from same-host calibration probe maxima (x1.5 headroom, seeds distinct from the measured runs): goodput@SLO exercises the machinery, it is not an external target",
+      "paired arm ran minutes apart against its own fresh llama-server process (OS page cache warm in both arms after calibration); arm-to-arm drift is not controlled beyond that",
+      "run_count=1 is below the >=3-repetitions methodology minimum (experiments.md rule 4); cross-run dispersion is not assessable",
+      "no rate sweep in this run set \u2014 knee_estimate is null; no claim is made about saturation behavior",
+      "no cost profile applies to this run set \u2014 cost is null (cost figures are only computed from a declared, provenanced cost-profile file, never from assumed rates)"
+    ],
+    "unexplained_anomalies": []
+  }
+}

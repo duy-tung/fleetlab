@@ -1,0 +1,53 @@
+{
+  "profile_id": "model-qwen2.5-1.5b-instruct-gguf-q4km",
+  "version": "0.1.0",
+  "description": "Qwen2.5-1.5B-Instruct, GGUF Q4_K_M quantization, as served by llama.cpp (commit 8f114a9) in inference-lab evidence/i3 (Scenario B, CPU-only). fleetlab-authored profile: architecture hyperparameters were measured directly from the pinned GGUF's own metadata this session (2026-07-11) via llama.cpp's gguf-py `gguf_dump.py` against /home/user/tools/models/qwen2.5-1.5b-instruct-q4_k_m.gguf (sha256 6a1a2eb6d15622bf3c96857206351ba97e1af16c30d7a74ee38970e434e9407e, matching inference-lab's pinned run manifests). kv_cache_bytes_per_token feeds fleetlab's FL-T003 KV-memory model cross-check (docs/notes/model-validation.md).",
+  "checkpoint": {
+    "id": "Qwen/Qwen2.5-1.5B-Instruct",
+    "revision": "sha256:6a1a2eb6d15622bf3c96857206351ba97e1af16c30d7a74ee38970e434e9407e"
+  },
+  "tokenizer": {
+    "id": "gguf-embedded",
+    "revision": "as-packaged-in-checkpoint"
+  },
+  "parameters_billion": {
+    "value": 1.54,
+    "provenance": {
+      "basis": "source-reported",
+      "as_of": "2026-07-11",
+      "source": "Qwen2.5 model card (Qwen team), Qwen2.5-1.5B-Instruct parameter count",
+      "notes": "GGUF metadata does not carry a total-parameter-count field; the measured architecture hyperparameters below (layers=28, embedding_length=1536, head_count=12, head_count_kv=2) are consistent with the named 1.5B variant, but the 1.54B figure itself is cited from the model card, not re-derived by summing tensor shapes this session."
+    }
+  },
+  "weights_size_gb": {
+    "value": 1.117,
+    "provenance": {
+      "basis": "measured",
+      "as_of": "2026-07-11",
+      "source": "file size of the pinned GGUF at /home/user/tools/models/qwen2.5-1.5b-instruct-q4_k_m.gguf: 1,117,320,736 bytes, measured this session",
+      "notes": "Q4_K_M-quantized on-disk size; not comparable to an unquantized bf16/fp16 weights_size_gb figure."
+    }
+  },
+  "context_limit_tokens": {
+    "value": 32768,
+    "provenance": {
+      "basis": "measured",
+      "as_of": "2026-07-11",
+      "source": "GGUF metadata key 'qwen2.context_length', read via llama.cpp gguf-py gguf_dump.py against the pinned checkpoint, this session",
+      "notes": "Model's architectural max context. The served runtime context in evidence/i3 was configured smaller (ctx_size=8192, parallel=2 slots -> n_ctx_slot=4096 per request) — an engine/deployment choice, not a model-profile fact."
+    }
+  },
+  "kv_cache_bytes_per_token": {
+    "value": 28672,
+    "provenance": {
+      "basis": "assumed",
+      "as_of": "2026-07-11",
+      "notes": "Computed as 2 (K+V) x layers(28) x kv_heads(2) x head_dim(128) x dtype_bytes(2, fp16) = 28,672 bytes/token. layers, kv_heads (qwen2.attention.head_count_kv), and head_dim (qwen2.embedding_length / qwen2.attention.head_count = 1536/12 = 128) were MEASURED from the pinned GGUF's own metadata via gguf_dump.py this session (2026-07-11) — see docs/notes/model-validation.md. The dtype_bytes=2 (KV cache stored as fp16) is llama.cpp's build default for commit 8f114a9 when no --cache-type-k/--cache-type-v flag is passed (confirmed by the run manifest's 'all remaining llama-server options at 8f114a9 build defaults' note) but was NOT independently confirmed by a measured memory metric in the available evidence (llama.cpp's /metrics endpoint and server logs at the captured verbosity expose no KV-buffer-size figure; the backend-capability descriptor records kv_cache_usage_ratio: null). This value is therefore 'assumed', not 'measured', despite most of its inputs being measured; the cross-check against measured memory is recorded as PENDING in docs/notes/model-validation.md, not fabricated as a passing check."
+    }
+  },
+  "quantization": {
+    "active": "gguf-q4_k_m",
+    "kv_cache_dtype": "f16 (assumed llama.cpp build default; not independently verified by a memory measurement — see kv_cache_bytes_per_token provenance)"
+  },
+  "notes": "This profile documents the exact model configuration behind inference-lab's evidence/i3 (Scenario B) real benchmark runs and behind fleetlab's FL-T003 KV-memory-model worksheet."
+}

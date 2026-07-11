@@ -1,0 +1,12 @@
+{
+  "model": "mock-8b",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Say hello."
+    }
+  ],
+  "response_format": {
+    "type": "json_object"
+  }
+}

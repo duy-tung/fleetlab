@@ -1,0 +1,9 @@
+{
+  "error": {
+    "message": "Unsupported field: 'tools' is not part of the supported request subset.",
+    "type": "invalid_request",
+    "code": "unsupported_field",
+    "param": "tools",
+    "request_id": "req_fixture_0400"
+  }
+}

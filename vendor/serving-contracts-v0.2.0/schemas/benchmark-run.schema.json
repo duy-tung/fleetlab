@@ -1,0 +1,158 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/duy-tung/serving-contracts/schemas/benchmark-run.schema.json",
+  "title": "Benchmark run manifest (Contract 3)",
+  "description": "The full configuration manifest of one benchmark run. Normative. Every field the benchmark comparability rule (compatibility-policy.md §7) keys on is required and explicit: results are comparable only when model revision, quantization, tokenizer, engine version+flags, hardware, driver/CUDA, workload version+seed, and warm-up policy all match, or the difference is the single declared experimental variable. A manifest missing any of these is not a valid run record.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "run_id",
+    "target_topology",
+    "workload_ref",
+    "engine",
+    "model",
+    "hardware",
+    "client",
+    "warm_up",
+    "repetitions",
+    "hypothesis"
+  ],
+  "properties": {
+    "run_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Unique run identifier; raw events and results link back to it."
+    },
+    "target_topology": {
+      "enum": ["engine-direct", "via-gateway", "gateway-mock"],
+      "description": "What the load generator talks to: the engine directly, the gateway in front of a real engine, or the gateway in front of the mock backend. via-gateway and gateway-mock REQUIRE the gateway block; engine-direct MUST NOT carry one."
+    },
+    "workload_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version", "seed"],
+      "description": "Exact workload identity this run executed (comparability keys on workload version + seed).",
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+        "seed": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "engine": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version", "commit", "flags"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "description": "e.g. vllm, llamacpp, mock." },
+        "version": { "type": "string", "minLength": 1 },
+        "commit": {
+          "type": ["string", "null"],
+          "description": "Source commit of the engine build; null only when genuinely unavailable (must then be noted in the result's validity block)."
+        },
+        "flags": {
+          "type": "object",
+          "description": "ALL non-default runtime flags of the engine process. Named properties below are typed for the common engines (as of 2026-07 — flag names are engine-specific and versioned; re-verify at use time); any other flag is recorded as an additional key. An empty object asserts the engine ran with pure defaults.",
+          "properties": {
+            "max_num_seqs": { "type": "integer", "minimum": 1 },
+            "max_num_batched_tokens": { "type": "integer", "minimum": 1 },
+            "gpu_memory_utilization": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 },
+            "prefix_caching": { "type": "boolean" },
+            "chunked_prefill": { "type": "boolean" },
+            "quantization": { "type": ["string", "null"], "description": "Quantization method active for this run (e.g. awq, gptq, fp8, gguf-q4_k_m); null = none." },
+            "kv_cache_dtype": { "type": "string", "description": "e.g. auto, fp8, fp8_e5m2." },
+            "speculative_decoding": {
+              "type": ["object", "null"],
+              "description": "Speculative decoding configuration verbatim; null = disabled."
+            }
+          },
+          "additionalProperties": {
+            "type": ["string", "number", "boolean", "null", "array", "object"]
+          }
+        }
+      }
+    },
+    "model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["checkpoint", "revision", "tokenizer"],
+      "properties": {
+        "checkpoint": { "type": "string", "minLength": 1, "description": "Model checkpoint identity (e.g. HF repo id or artifact path)." },
+        "revision": { "type": "string", "minLength": 1, "description": "Exact revision/commit/digest of the checkpoint." },
+        "tokenizer": { "type": "string", "minLength": 1, "description": "Tokenizer identity used for all token counts in this run." }
+      }
+    },
+    "hardware": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["gpu_model", "gpu_count", "vram_gb", "driver_version", "cuda_version", "instance_type"],
+      "description": "Null values are permitted only where the field is genuinely not applicable (e.g. CPU-only mock runs) and assert 'not applicable', never 'not recorded'.",
+      "properties": {
+        "gpu_model": { "type": ["string", "null"] },
+        "gpu_count": { "type": "integer", "minimum": 0 },
+        "vram_gb": { "type": ["number", "null"], "exclusiveMinimum": 0 },
+        "driver_version": { "type": ["string", "null"] },
+        "cuda_version": { "type": ["string", "null"] },
+        "instance_type": { "type": "string", "minLength": 1, "description": "Cloud instance type or a self-describing local machine label." }
+      }
+    },
+    "gateway": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "config_version"],
+      "properties": {
+        "version": { "type": "string", "minLength": 1, "description": "infergate release version." },
+        "config_version": { "type": "string", "minLength": 1, "description": "Gateway config snapshot version active during the run (matches the inference.config_version trace attribute)." }
+      }
+    },
+    "client": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["location", "rtt_ms"],
+      "properties": {
+        "location": { "type": "string", "minLength": 1, "description": "Where the load generator ran relative to the target (e.g. same-host, same-zone, region name)." },
+        "rtt_ms": { "type": ["number", "null"], "minimum": 0, "description": "Measured network round-trip time from client to target; null only for same-process mocks." }
+      }
+    },
+    "warm_up": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policy"],
+      "description": "Warm-up policy. Comparability keys on it; the result's validity block records how warm-up was handled in aggregation.",
+      "properties": {
+        "policy": { "enum": ["discard-duration", "discard-requests", "none"] },
+        "value": { "type": "number", "exclusiveMinimum": 0, "description": "Seconds for discard-duration, request count for discard-requests." }
+      },
+      "if": {
+        "properties": { "policy": { "enum": ["discard-duration", "discard-requests"] } },
+        "required": ["policy"]
+      },
+      "then": { "required": ["value"] }
+    },
+    "repetitions": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Number of repetitions of the workload in this run set."
+    },
+    "hypothesis": {
+      "type": "string",
+      "minLength": 10,
+      "description": "The falsifiable statement this run tests, including the single declared experimental variable if the run is part of a comparison."
+    },
+    "started_at": { "type": "string", "format": "date-time" },
+    "contracts_bundle_version": {
+      "type": "string",
+      "description": "serving-contracts bundle tag the emitting tool was pinned to."
+    },
+    "notes": { "type": "string" }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "target_topology": { "enum": ["via-gateway", "gateway-mock"] } },
+        "required": ["target_topology"]
+      },
+      "then": { "required": ["gateway"] },
+      "else": { "not": { "required": ["gateway"] } }
+    }
+  ]
+}

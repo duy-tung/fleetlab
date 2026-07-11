@@ -1,0 +1,27 @@
+{
+  "scenario_id": "fs-05",
+  "contract_item": 5,
+  "name": "Gateway termination during streaming",
+  "injection": {
+    "description": "Send SIGTERM to one gateway instance (normal orchestrated pod termination) while it is relaying active streams.",
+    "target": "gateway",
+    "method": "pod-termination",
+    "parameters": { "signal": "SIGTERM", "instances": 1 }
+  },
+  "expected_gateway_semantics": [
+    "On SIGTERM (via the preStop drain hook of the deployment contract) readiness goes false and no new requests are accepted.",
+    "Accepted streams run to completion within the termination grace period — the deployment contract guarantees grace period > max stream duration, so no in-flight stream is force-killed.",
+    "The process exits only after in-flight streams have completed (or the grace deadline is reached, which the rule above makes unreachable for conformant streams)."
+  ],
+  "expected_client_visible_behavior": [
+    "In-flight streams complete normally; new requests are served by the remaining instances; zero client-visible errors attributable to the termination."
+  ],
+  "metrics_that_must_move": [
+    { "source": "gateway", "metric": "inference_requests_in_flight", "expectation": "drains to 0 on the terminating instance before process exit" },
+    { "source": "gateway", "metric": "inference_backend_healthy", "expectation": "load-balancer/endpoint view of the terminating instance leaves rotation before its streams finish (drain ordering observable)" }
+  ],
+  "metrics_that_must_not_move": [
+    { "source": "gateway", "metric": "inference_requests_total", "expectation": "no status_class=5xx increase attributable to the termination window" }
+  ],
+  "abort_condition": "Abort the injection (and restore the instance) if any in-flight stream is dropped without a standardized SSE error event, or if new requests are accepted after drain began."
+}

@@ -1,0 +1,4 @@
+Violates backend-capability.schema.json cancellation.required: the
+`release_observability` block is absent. Contract 1 makes observable resource
+release part of cancellation conformance; a capability descriptor that cannot
+say how release is observed is invalid.

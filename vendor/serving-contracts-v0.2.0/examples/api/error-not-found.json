@@ -1,0 +1,9 @@
+{
+  "error": {
+    "message": "Model 'unknown-model' does not exist.",
+    "type": "not_found",
+    "code": "model_not_found",
+    "param": "model",
+    "request_id": "req_fixture_0404"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "error": {
+    "message": "API key does not have access to model 'mock-8b'.",
+    "type": "permission",
+    "code": null,
+    "param": "model",
+    "request_id": "req_fixture_0403"
+  }
+}

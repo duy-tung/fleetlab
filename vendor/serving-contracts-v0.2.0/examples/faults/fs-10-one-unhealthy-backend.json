@@ -1,0 +1,25 @@
+{
+  "scenario_id": "fs-10",
+  "contract_item": 10,
+  "name": "One unhealthy backend",
+  "injection": {
+    "description": "Make one backend of a multi-backend pool persistently unhealthy (all requests fail fast with errors) while the others stay healthy.",
+    "target": "backend",
+    "method": "error-injection",
+    "parameters": { "failure_mode": "immediate-5xx", "backends_affected": 1 }
+  },
+  "expected_gateway_semantics": [
+    "Routing shifts away from the unhealthy backend within a bounded interval; its circuit opens on error rate and only probe traffic reaches it while open.",
+    "Errors surfaced to clients before the shift are typed (error.type=upstream_error) and pre-first-token failures are retried within budget against healthy backends (fs-01 semantics).",
+    "The circuit re-closes only after successful probes when the backend recovers."
+  ],
+  "expected_client_visible_behavior": [
+    "At most a brief, bounded window of elevated typed errors and retry-elevated TTFT, then recovery to baseline while the backend stays down."
+  ],
+  "metrics_that_must_move": [
+    { "source": "gateway", "metric": "inference_backend_healthy", "expectation": "goes to 0 for the injected backend within the bounded detection interval" },
+    { "source": "gateway", "metric": "inference_requests_total", "expectation": "the injected backend's share of requests drops to approximately probe-only; error_class=upstream_error increases only transiently during the shift window" },
+    { "source": "gateway", "metric": "inference_retries_total", "expectation": "increases with stage=pre-first-token during the shift window" }
+  ],
+  "abort_condition": "Abort the injection if the routing shift takes longer than twice the configured detection bound, or if requests keep routing to the backend while its circuit is open."
+}

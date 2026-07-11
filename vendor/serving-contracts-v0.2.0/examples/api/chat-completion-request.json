@@ -1,0 +1,21 @@
+{
+  "model": "mock-8b",
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a terse assistant."
+    },
+    {
+      "role": "user",
+      "content": "Say hello."
+    }
+  ],
+  "max_completion_tokens": 64,
+  "temperature": 0.2,
+  "top_p": 0.9,
+  "stop": [
+    "\n\n"
+  ],
+  "seed": 42,
+  "user": "fixture-user-01"
+}

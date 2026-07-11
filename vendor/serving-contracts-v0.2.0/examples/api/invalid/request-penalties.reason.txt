@@ -1,0 +1,1 @@
+Penalty sampling parameters are unsupported: 'presence_penalty'/'frequency_penalty' are outside the supported subset. MUST be rejected 400 invalid_request/unsupported_field.

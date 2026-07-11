@@ -1,0 +1,306 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/duy-tung/serving-contracts/schemas/workload.schema.json",
+  "title": "Workload definition (Contract 3)",
+  "description": "A reproducible load-generation workload for inferbench. Normative. Every field that shapes traffic is explicit and required — there are no implicit defaults, because the benchmark comparability rule (compatibility-policy.md §7) keys on workload version + seed. The eight named workloads under examples/workloads/ are NON-NORMATIVE fixtures; the canonical versioned suite is owned by inferbench (IB-T003).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "name",
+    "version",
+    "seed",
+    "arrival_process",
+    "input_length_distribution",
+    "output_length_distribution",
+    "prefix_sharing",
+    "cancellation",
+    "slow_client",
+    "stop"
+  ],
+  "properties": {
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "description": "Workload identifier, kebab-case."
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "SemVer of this workload definition. Any change to any traffic-shaping field bumps it; results are comparable only across identical workload version + seed."
+    },
+    "seed": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "PRNG seed. All sampling (arrival times, lengths, cancellation points, slow-client assignment) MUST derive deterministically from this seed."
+    },
+    "description": {
+      "type": "string",
+      "description": "Human-readable intent of the workload (explanatory, not traffic-shaping)."
+    },
+    "arrival_process": {
+      "description": "Exactly one of open-loop Poisson (rate-driven; queueing delay visible) or closed-loop (concurrency-driven; MUST carry the disclosure flag because closed-loop arrival hides queueing delay under saturation).",
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type"],
+          "properties": {
+            "type": { "const": "open-loop-poisson" },
+            "rate_rps": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "description": "Mean arrival rate (requests/second) for a single-phase workload. Mutually exclusive with phases."
+            },
+            "phases": {
+              "type": "array",
+              "minItems": 1,
+              "description": "Piecewise-constant rate schedule for time-varying (e.g. bursty) workloads. Mutually exclusive with rate_rps.",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["duration_seconds", "rate_rps"],
+                "properties": {
+                  "duration_seconds": { "type": "number", "exclusiveMinimum": 0 },
+                  "rate_rps": { "type": "number", "minimum": 0 }
+                }
+              }
+            },
+            "repeat_phases": {
+              "type": "boolean",
+              "description": "If true, the phase schedule repeats cyclically until the stop condition; if false or absent, arrivals stop when the schedule is exhausted (even if the stop condition has not fired)."
+            }
+          },
+          "dependentRequired": { "repeat_phases": ["phases"] },
+          "oneOf": [
+            { "required": ["rate_rps"] },
+            { "required": ["phases"] }
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "concurrency", "closed_loop_disclosed"],
+          "properties": {
+            "type": { "const": "closed-loop" },
+            "concurrency": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Number of concurrent client loops; each issues its next request only after the previous one completes (plus think time)."
+            },
+            "think_time_seconds": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Fixed delay each loop waits between completing a request and sending the next. Absent means 0."
+            },
+            "closed_loop_disclosed": {
+              "const": true,
+              "description": "MANDATORY disclosure flag, literally true. Closed-loop arrival throttles offered load to service capacity, hiding queueing delay and understating tail latency under saturation (coordinated-omission-adjacent bias). Every report of a closed-loop run MUST label it as closed-loop; a closed-loop workload without this flag is invalid."
+            }
+          }
+        }
+      ]
+    },
+    "input_length_distribution": {
+      "$ref": "#/$defs/distribution",
+      "description": "Distribution of input (prompt) length in tokens, measured with the tokenizer recorded in the run manifest. Sampled values are rounded to the nearest integer >= 1."
+    },
+    "output_length_distribution": {
+      "$ref": "#/$defs/distribution",
+      "description": "Distribution of requested output length in tokens (drives max_tokens per request). Sampled values are rounded to the nearest integer >= 1."
+    },
+    "prefix_sharing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ratio"],
+      "properties": {
+        "ratio": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Fraction of requests whose prompt begins with a shared prefix. 0 = no sharing (still explicitly declared)."
+        },
+        "shared_prefix_length_tokens": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Length of the shared prefix in tokens. Required when ratio > 0."
+        },
+        "group_size": {
+          "type": "integer",
+          "minimum": 2,
+          "description": "Number of distinct requests sharing each prefix group before a new prefix is generated. Absent means one global shared prefix."
+        }
+      },
+      "if": {
+        "required": ["ratio"],
+        "properties": { "ratio": { "exclusiveMinimum": 0 } }
+      },
+      "then": { "required": ["shared_prefix_length_tokens"] }
+    },
+    "cancellation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rate"],
+      "description": "Client-initiated cancellation profile. rate 0 = no cancellations (still explicitly declared). When rate > 0, the cancellation point MUST be specified.",
+      "properties": {
+        "rate": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Fraction of requests the client cancels (connection close per Contract 1 cancellation semantics)."
+        },
+        "point": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["trigger", "distribution"],
+          "properties": {
+            "trigger": {
+              "enum": ["elapsed-seconds", "output-tokens"],
+              "description": "Whether the cancellation point is sampled in wall-clock seconds since send, or in output tokens received."
+            },
+            "distribution": {
+              "$ref": "#/$defs/distribution",
+              "description": "Distribution of the cancellation point, in the trigger's unit. Token-valued samples are rounded to the nearest integer >= 0."
+            }
+          }
+        }
+      },
+      "if": {
+        "required": ["rate"],
+        "properties": { "rate": { "exclusiveMinimum": 0 } }
+      },
+      "then": { "required": ["point"] }
+    },
+    "slow_client": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fraction"],
+      "description": "Slow-client profile: a fraction of clients read the response stream slower than the server produces it (exercises gateway write-buffer bounds and write deadlines, fault scenario 4). fraction 0 = no slow clients (still explicitly declared).",
+      "properties": {
+        "fraction": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Fraction of requests issued by throttled-read clients."
+        },
+        "read_bytes_per_second": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Sustained client read throughput applied to the response stream. Required when fraction > 0."
+        },
+        "initial_read_delay_seconds": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Optional delay before the slow client starts reading the response at all."
+        }
+      },
+      "if": {
+        "required": ["fraction"],
+        "properties": { "fraction": { "exclusiveMinimum": 0 } }
+      },
+      "then": { "required": ["read_bytes_per_second"] }
+    },
+    "stop": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Exactly one stop condition: wall-clock duration or total request count.",
+      "properties": {
+        "duration_seconds": { "type": "number", "exclusiveMinimum": 0 },
+        "request_count": { "type": "integer", "minimum": 1 }
+      },
+      "oneOf": [
+        { "required": ["duration_seconds"] },
+        { "required": ["request_count"] }
+      ]
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Free-form labels for report grouping (explanatory, not traffic-shaping)."
+    }
+  },
+  "$defs": {
+    "distribution": {
+      "description": "A 1-D sampling distribution. Values are numbers; token-valued uses round to integers as stated at the point of use.",
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "value"],
+          "properties": {
+            "type": { "const": "constant" },
+            "value": { "type": "number", "minimum": 0 }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "min", "max"],
+          "properties": {
+            "type": { "const": "uniform" },
+            "min": { "type": "number", "minimum": 0 },
+            "max": { "type": "number", "minimum": 0 }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "mean", "stddev"],
+          "properties": {
+            "type": { "const": "normal" },
+            "mean": { "type": "number", "exclusiveMinimum": 0 },
+            "stddev": { "type": "number", "minimum": 0 },
+            "min": { "type": "number", "minimum": 0, "description": "Lower clamp applied after sampling." },
+            "max": { "type": "number", "minimum": 0, "description": "Upper clamp applied after sampling." }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "mu", "sigma"],
+          "properties": {
+            "type": { "const": "lognormal" },
+            "mu": { "type": "number", "description": "Mean of the underlying normal (log-space)." },
+            "sigma": { "type": "number", "minimum": 0, "description": "Stddev of the underlying normal (log-space)." },
+            "min": { "type": "number", "minimum": 0, "description": "Lower clamp applied after sampling." },
+            "max": { "type": "number", "minimum": 0, "description": "Upper clamp applied after sampling." }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "samples"],
+          "properties": {
+            "type": { "const": "empirical" },
+            "samples": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "type": "number", "minimum": 0 },
+              "description": "Sampled uniformly (with replacement) from this list."
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "components"],
+          "properties": {
+            "type": { "const": "mixture" },
+            "components": {
+              "type": "array",
+              "minItems": 2,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["weight", "distribution"],
+                "properties": {
+                  "weight": { "type": "number", "exclusiveMinimum": 0, "description": "Relative weight; weights are normalized to sum to 1." },
+                  "distribution": { "$ref": "#/$defs/distribution" }
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

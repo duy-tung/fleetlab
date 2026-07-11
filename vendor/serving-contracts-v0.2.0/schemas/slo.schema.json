@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/duy-tung/serving-contracts/schemas/slo.schema.json",
+  "title": "SLO (fleet schema; goodput reference for Contracts 3 and 7)",
+  "description": "A named, versioned set of objectives. benchmark-result.goodput.slo_ref and capacity-recommendation.inputs.slo_ref point at instances of this schema — goodput is only defined relative to one. PROVENANCE IS MANDATORY per objective (basis + date; no fabricated defaults). NORMATIVE declaration rule, encoded structurally: scope=model-serving SLOs (TTFT/ITL/goodput and other model-level targets) are declared ONLY from measurement — every objective's provenance.basis MUST be 'measured' (with the measurement identified in provenance.source); declaring model-level targets in advance of measurement is not schema-valid. scope=gateway SLOs may carry source-reported program targets (as of 2026-07 — re-baseline from measurement if infeasible).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["slo_id", "version", "scope", "objectives"],
+  "properties": {
+    "slo_id": { "type": "string", "minLength": 1 },
+    "version": { "type": "string", "minLength": 1, "description": "Consumers reference SLOs by id + version; results computed against different SLO versions are not comparable." },
+    "scope": {
+      "enum": ["gateway", "model-serving"],
+      "description": "gateway: targets on gateway-owned signals (overhead, cancellation propagation, settlement, control-plane actions). model-serving: targets on model-level signals (TTFT, ITL, e2e, stall, goodput) — measurement-derived only."
+    },
+    "description": { "type": "string" },
+    "applies_to": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "What this SLO is scoped to (informative; matching is by reference, not by these fields).",
+      "properties": {
+        "model_profile_ref": { "type": "string" },
+        "workload_ref": { "type": "string" },
+        "tenant_tier": { "type": "string" }
+      }
+    },
+    "objectives": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["signal", "statistic", "comparator", "threshold", "unit", "provenance"],
+        "properties": {
+          "signal": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "minLength": 1,
+            "description": "Signal name. For model-serving scope use Contract 2 vocabulary names (e.g. ttft_seconds, itl_seconds, e2e_duration_seconds, max_stall_seconds; client_ prefix for client-side series). Gateway-target signals: gateway_overhead_non_queue_seconds, cancellation_propagation_seconds, usage_settle_variance_ratio, key_revocation_effect_seconds, config_publish_effect_seconds."
+          },
+          "statistic": {
+            "enum": ["p50", "p90", "p95", "p99", "p999", "mean", "max", "value"],
+            "description": "'value' = the signal is a scalar per evaluation window (e.g. a variance ratio or propagation deadline), not a per-request distribution."
+          },
+          "comparator": { "enum": ["<", "<=", ">", ">="] },
+          "threshold": { "type": "number" },
+          "unit": { "enum": ["seconds", "ratio", "count", "requests_per_second", "tokens_per_second"] },
+          "provenance": { "$ref": "#/$defs/provenance" },
+          "notes": { "type": "string", "description": "Objective-specific conditions (e.g. cancellation propagation target holds on the gateway+mock path)." }
+        }
+      }
+    },
+    "notes": { "type": "string" }
+  },
+  "if": {
+    "properties": { "scope": { "const": "model-serving" } },
+    "required": ["scope"]
+  },
+  "then": {
+    "properties": {
+      "objectives": {
+        "items": {
+          "properties": {
+            "provenance": {
+              "properties": {
+                "basis": {
+                  "const": "measured",
+                  "description": "Model-level SLOs are declared only from measurement, never in advance."
+                }
+              },
+              "required": ["basis"]
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["basis", "as_of"],
+      "description": "MANDATORY provenance: how this objective's threshold was established and when. basis=measured: from an identified measurement (source = benchmark result_id or measurement artifact). basis=source-reported: from an identified external source (e.g. the program plan's source-verified gateway targets). basis=assumed: an explicit assumption — never a silent default; state the reasoning in notes.",
+      "properties": {
+        "basis": { "enum": ["measured", "source-reported", "assumed"] },
+        "as_of": { "type": "string", "format": "date", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+        "source": { "type": "string", "minLength": 1, "description": "REQUIRED for measured and source-reported values: what produced or reported the value." },
+        "notes": { "type": "string" }
+      },
+      "if": { "properties": { "basis": { "enum": ["measured", "source-reported"] } }, "required": ["basis"] },
+      "then": { "required": ["source"] }
+    }
+  }
+}

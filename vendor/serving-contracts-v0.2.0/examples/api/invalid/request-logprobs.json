@@ -1,0 +1,11 @@
+{
+  "model": "mock-8b",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Say hello."
+    }
+  ],
+  "logprobs": true,
+  "top_logprobs": 5
+}

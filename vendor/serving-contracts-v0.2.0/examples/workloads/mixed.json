@@ -1,0 +1,81 @@
+{
+  "name": "mixed",
+  "version": "0.1.0",
+  "seed": 20260710,
+  "description": "Mixture of chat-like (70%) and RAG-like (30%) traffic via mixture length distributions. NON-NORMATIVE example fixture; canonical suite owned by inferbench.",
+  "arrival_process": {
+    "type": "open-loop-poisson",
+    "rate_rps": 5
+  },
+  "input_length_distribution": {
+    "type": "mixture",
+    "components": [
+      {
+        "weight": 0.7,
+        "distribution": {
+          "type": "normal",
+          "mean": 220,
+          "stddev": 80,
+          "min": 16,
+          "max": 1024
+        }
+      },
+      {
+        "weight": 0.3,
+        "distribution": {
+          "type": "uniform",
+          "min": 4000,
+          "max": 12000
+        }
+      }
+    ]
+  },
+  "output_length_distribution": {
+    "type": "mixture",
+    "components": [
+      {
+        "weight": 0.7,
+        "distribution": {
+          "type": "lognormal",
+          "mu": 5.0,
+          "sigma": 0.6,
+          "min": 8,
+          "max": 512
+        }
+      },
+      {
+        "weight": 0.3,
+        "distribution": {
+          "type": "normal",
+          "mean": 250,
+          "stddev": 100,
+          "min": 32,
+          "max": 768
+        }
+      }
+    ]
+  },
+  "prefix_sharing": {
+    "ratio": 0.2,
+    "shared_prefix_length_tokens": 400,
+    "group_size": 16
+  },
+  "cancellation": {
+    "rate": 0.02,
+    "point": {
+      "trigger": "elapsed-seconds",
+      "distribution": {
+        "type": "uniform",
+        "min": 1,
+        "max": 20
+      }
+    }
+  },
+  "slow_client": {
+    "fraction": 0
+  },
+  "stop": {
+    "duration_seconds": 1200
+  },
+  "tags": ["mixture", "realistic"]
+}

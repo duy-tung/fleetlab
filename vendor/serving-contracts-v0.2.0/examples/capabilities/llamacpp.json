@@ -1,0 +1,70 @@
+{
+  "engine": {
+    "name": "llamacpp",
+    "version": "b5700",
+    "commit": "c3f2a1b0d9e8f7a6b5c4d3e2f1a0b9c8d7e6f5a4"
+  },
+  "streaming": {
+    "supported": true,
+    "protocol": "sse"
+  },
+  "usage_in_stream": {
+    "supported": true,
+    "mechanism": "usage in final chunk of the OpenAI-compatible endpoint (as of 2026-07 — re-verify at use time)"
+  },
+  "cancellation": {
+    "mechanism": "http-connection-close",
+    "propagation_note": "llama-server stops generation for a slot when the client connection closes; the slot returns to the pool (as of 2026-07 — re-verify at use time).",
+    "release_observability": {
+      "observable": true,
+      "signals": [
+        "running_requests",
+        "log:slot released"
+      ]
+    }
+  },
+  "metrics": {
+    "endpoint": "/metrics",
+    "format": "prometheus",
+    "name_mapping": {
+      "as_of": "2026-07-10",
+      "verified_against_version": "b5700",
+      "entries": {
+        "queue_waiting_requests": "llamacpp:requests_deferred",
+        "running_requests": "llamacpp:requests_processing",
+        "kv_cache_usage_ratio": "llamacpp:kv_cache_usage_ratio",
+        "prefix_cache_hit_rate": null,
+        "generation_tokens_total": "llamacpp:tokens_predicted_total",
+        "prompt_tokens_total": "llamacpp:prompt_tokens_total"
+      }
+    }
+  },
+  "tokenizer": {
+    "id": "gguf-embedded",
+    "revision": "as-packaged-in-checkpoint"
+  },
+  "context_limit_tokens": 8192,
+  "concurrency_hints": {
+    "max_concurrent_requests": 4,
+    "max_batched_tokens": 2048
+  },
+  "prefix_cache": {
+    "supported": true,
+    "observability": {
+      "observable": false,
+      "signals": []
+    }
+  },
+  "quantization": {
+    "active": "gguf-q4_k_m",
+    "methods_supported": ["gguf-q8_0", "gguf-q6_k", "gguf-q5_k_m", "gguf-q4_k_m", "gguf-q4_0"]
+  },
+  "priority": {
+    "supported": false
+  },
+  "provenance": {
+    "as_of": "2026-07-10",
+    "method": "source-reported",
+    "notes": "Metric names, slot semantics, and usage-in-stream behavior taken from llama.cpp server docs/source, not yet probed against a running build. Engine metric names vary by version and MUST be re-verified at adapter-probe time (as of 2026-07). Example fixture; version/commit illustrative."
+  }
+}

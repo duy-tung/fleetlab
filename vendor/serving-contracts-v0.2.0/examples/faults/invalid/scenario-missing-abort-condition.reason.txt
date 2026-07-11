@@ -1,0 +1,4 @@
+why-invalid: omits the required "abort_condition" field. Every fault scenario MUST
+declare the condition under which the injection is aborted and the system restored —
+an injection campaign without a safety rail is not runnable (fault-scenario.schema.json
+"required"). Everything else in this fixture is a valid fs-06 encoding.

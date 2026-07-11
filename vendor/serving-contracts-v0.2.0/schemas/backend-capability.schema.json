@@ -1,0 +1,203 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/duy-tung/serving-contracts/schemas/backend-capability.schema.json",
+  "title": "Backend capability descriptor (Contract 4)",
+  "description": "Declares what an inference engine EXPOSES: features, limits, and observation points. Normative. Boundary rule (hard program rule 4): this descriptor describes engine-owned facts; it MUST NOT carry scheduling directives for the gateway (continuous batching, per-token scheduling, KV/prefix-cache internals, and GPU placement are engine-owned — the gateway consumes these fields as feature gates and probe configuration only). Engine metric names and endpoint shapes are volatile: every descriptor carries a dated provenance block, and metric names are MAPPED per descriptor, never hardcoded by consumers (as of 2026-07 — re-verify at use time).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "engine",
+    "streaming",
+    "usage_in_stream",
+    "cancellation",
+    "metrics",
+    "tokenizer",
+    "context_limit_tokens",
+    "concurrency_hints",
+    "prefix_cache",
+    "quantization",
+    "priority",
+    "provenance"
+  ],
+  "properties": {
+    "engine": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version", "commit"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "description": "Engine identifier (e.g. mock, llamacpp, vllm)." },
+        "version": { "type": "string", "minLength": 1 },
+        "commit": { "type": ["string", "null"], "description": "Build commit; null only when genuinely unavailable." }
+      }
+    },
+    "streaming": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["supported"],
+      "properties": {
+        "supported": { "type": "boolean" },
+        "protocol": { "enum": ["sse", "chunked-json"], "description": "Wire framing of the engine's streaming responses." }
+      },
+      "if": { "properties": { "supported": { "const": true } }, "required": ["supported"] },
+      "then": { "required": ["protocol"] }
+    },
+    "usage_in_stream": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["supported"],
+      "description": "Whether the engine can deliver token usage inside the stream (Contract 1 stream_options.include_usage). If false, the gateway must settle usage from its own token accounting.",
+      "properties": {
+        "supported": { "type": "boolean" },
+        "mechanism": { "type": "string", "description": "How usage arrives (e.g. final chunk when stream_options.include_usage=true)." }
+      }
+    },
+    "cancellation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mechanism", "release_observability"],
+      "description": "How the engine learns a request is canceled and how release of its resources can be OBSERVED. Contract 1 makes observable release part of cancellation conformance; a descriptor without release observability is invalid.",
+      "properties": {
+        "mechanism": {
+          "enum": ["http-connection-close", "explicit-abort-endpoint", "none"],
+          "description": "http-connection-close: closing the upstream request body/connection aborts generation. explicit-abort-endpoint: a separate abort call is required. none: engine runs to completion regardless (cancellation non-conformant)."
+        },
+        "propagation_note": { "type": "string", "description": "Engine-specific behavior detail (e.g. abort detected at next scheduling step)." },
+        "release_observability": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["observable", "signals"],
+          "properties": {
+            "observable": { "type": "boolean" },
+            "signals": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 },
+              "description": "Concrete signals that confirm the engine released the request's resources after cancel (canonical metric keys from metrics.name_mapping, or log patterns). MUST be non-empty when observable=true."
+            }
+          },
+          "if": { "properties": { "observable": { "const": true } }, "required": ["observable"] },
+          "then": { "properties": { "signals": { "minItems": 1 } } }
+        }
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["endpoint", "format", "name_mapping"],
+      "description": "Engine metrics exposure. NORMATIVE: consumers MUST resolve engine metric names through name_mapping, never hardcode them — names vary by engine and engine version (e.g. vLLM waiting/KV-usage gauges; as of 2026-07, re-verify at use time).",
+      "properties": {
+        "endpoint": { "type": ["string", "null"], "description": "Path of the engine's metrics endpoint (e.g. /metrics); null when the engine exposes none." },
+        "format": { "enum": ["prometheus", "none"] },
+        "name_mapping": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["as_of", "verified_against_version", "entries"],
+          "properties": {
+            "as_of": { "type": "string", "format": "date", "description": "Date the mapping was last verified against a running engine of the stated version." },
+            "verified_against_version": { "type": "string", "minLength": 1, "description": "Exact engine version the mapping was verified against." },
+            "entries": {
+              "type": "object",
+              "description": "Canonical signal key -> engine-native metric name (null = engine has no equivalent). Canonical keys are stable contract surface; engine names are per-descriptor data.",
+              "propertyNames": { "pattern": "^[a-z][a-z0-9_]*$" },
+              "additionalProperties": { "type": ["string", "null"] },
+              "properties": {
+                "queue_waiting_requests": { "type": ["string", "null"] },
+                "running_requests": { "type": ["string", "null"] },
+                "kv_cache_usage_ratio": { "type": ["string", "null"] },
+                "prefix_cache_hit_rate": { "type": ["string", "null"] },
+                "generation_tokens_total": { "type": ["string", "null"] },
+                "prompt_tokens_total": { "type": ["string", "null"] }
+              }
+            }
+          }
+        }
+      },
+      "if": { "properties": { "format": { "const": "prometheus" } }, "required": ["format"] },
+      "then": { "properties": { "endpoint": { "type": "string", "minLength": 1 } } }
+    },
+    "tokenizer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "description": "Tokenizer identity (e.g. HF repo id, gguf-embedded, mock scheme). Token counts are comparable only under the same tokenizer." },
+        "revision": { "type": "string" }
+      }
+    },
+    "context_limit_tokens": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Maximum context (input + output) the engine accepts for the served model as configured."
+    },
+    "concurrency_hints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_concurrent_requests"],
+      "description": "HINTS for admission sizing, not scheduling directives: the gateway may cap in-flight requests using these, but MUST NOT attempt to batch or schedule tokens itself.",
+      "properties": {
+        "max_concurrent_requests": { "type": ["integer", "null"], "minimum": 1, "description": "Engine-configured concurrent request ceiling; null when the engine advertises none." },
+        "max_batched_tokens": { "type": ["integer", "null"], "minimum": 1 }
+      }
+    },
+    "prefix_cache": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["supported", "observability"],
+      "properties": {
+        "supported": { "type": "boolean" },
+        "observability": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["observable", "signals"],
+          "properties": {
+            "observable": { "type": "boolean", "description": "Whether prefix-cache effectiveness can be observed externally (metrics/logs), as opposed to only inferred from latency." },
+            "signals": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 },
+              "description": "Canonical metric keys or log patterns evidencing cache behavior. MUST be non-empty when observable=true."
+            }
+          },
+          "if": { "properties": { "observable": { "const": true } }, "required": ["observable"] },
+          "then": { "properties": { "signals": { "minItems": 1 } } }
+        }
+      }
+    },
+    "quantization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["active", "methods_supported"],
+      "properties": {
+        "active": { "type": ["string", "null"], "description": "Quantization active for the served model (e.g. awq, fp8, gguf-q4_k_m); null = none." },
+        "methods_supported": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Methods this engine build can load. May be empty."
+        }
+      }
+    },
+    "priority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["supported"],
+      "properties": {
+        "supported": { "type": "boolean", "description": "Whether the engine accepts a per-request priority signal." },
+        "mechanism": { "type": "string", "description": "How priority is conveyed (engine-owned scheduling; the gateway only forwards the signal)." }
+      },
+      "if": { "properties": { "supported": { "const": true } }, "required": ["supported"] },
+      "then": { "required": ["mechanism"] }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["as_of", "method"],
+      "description": "How and when this descriptor's facts were established. Ecosystem facts here are volatile (as of 2026-07 — re-verify at use time).",
+      "properties": {
+        "as_of": { "type": "string", "format": "date" },
+        "method": {
+          "enum": ["probed", "declared", "source-reported"],
+          "description": "probed: verified against a running engine; declared: asserted by the operator; source-reported: taken from engine docs/source."
+        },
+        "notes": { "type": "string" }
+      }
+    }
+  }
+}

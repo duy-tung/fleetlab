@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/duy-tung/serving-contracts/schemas/fault-scenario.schema.json",
+  "title": "Fault scenario (Contract 6)",
+  "description": "Shared fault-scenario vocabulary for milestone I7. Each scenario encodes: stable ID, injection description, expected gateway semantics, expected client-visible behavior, metrics that must move, and an abort condition. Consumers: inferops (injects), infergate (semantics tests), inferbench (client-impact measurement), inference-lab (postmortems). The 12 required scenarios ship as fixtures under examples/faults/ (fs-01 … fs-12); their semantics are normative — an injection campaign that observes different behavior has found a defect (in the implementation or, via the contract-defect process, in the scenario).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "scenario_id",
+    "contract_item",
+    "name",
+    "injection",
+    "expected_gateway_semantics",
+    "expected_client_visible_behavior",
+    "metrics_that_must_move",
+    "abort_condition"
+  ],
+  "properties": {
+    "scenario_id": {
+      "type": "string",
+      "pattern": "^fs-[0-9]{2}$",
+      "description": "Stable scenario ID (fs-01 … fs-12 for the Contract 6 catalog). IDs are contract surface: postmortems, dashboards, and campaign reports key on them."
+    },
+    "contract_item": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 12,
+      "description": "Which numbered item of the Contract 6 catalog this scenario encodes (coverage audit: each of 1-12 appears exactly once across the fixtures)."
+    },
+    "name": { "type": "string", "minLength": 1 },
+    "injection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["description", "target"],
+      "description": "What inferops does to induce the fault. Descriptive, tool-agnostic: the injection method may vary; the induced condition may not.",
+      "properties": {
+        "description": { "type": "string", "minLength": 1 },
+        "target": {
+          "enum": ["backend", "gateway", "client", "network", "config", "database", "orchestration"],
+          "description": "Where the fault is injected."
+        },
+        "method": { "type": "string", "description": "Suggested mechanism (e.g. process-kill, latency-injection, load-profile); informative." },
+        "parameters": {
+          "type": "object",
+          "description": "Injection parameters (free-form, scenario-specific; e.g. signal, phase, delay_ms, fraction)."
+        }
+      }
+    },
+    "expected_gateway_semantics": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Normative statements about what the gateway MUST do under this fault (infergate's semantics tests assert these)."
+    },
+    "expected_client_visible_behavior": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Normative statements about what clients observe (inferbench measures these)."
+    },
+    "metrics_that_must_move": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/metricExpectation" },
+      "description": "Signals that MUST visibly respond to the injection. An injection whose expected metrics do not move is either not injected or not observable — both fail the campaign."
+    },
+    "metrics_that_must_not_move": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/metricExpectation" },
+      "description": "Signals that MUST stay flat (e.g. retries after first token). Violations are defects even when everything else looks healthy."
+    },
+    "abort_condition": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Condition under which the injection MUST be aborted and the system restored (safety rail for the campaign). An abort is recorded, never silently retried."
+    },
+    "notes": { "type": "string" }
+  },
+  "$defs": {
+    "metricExpectation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "metric", "expectation"],
+      "description": "One observable signal and its expected movement. source=gateway/client: metric MUST be a name from the Contract 2 vocabulary (metrics/metrics.md; client-side series carry the client_ prefix). source=engine: metric MUST be a canonical signal key resolved via the backend-capability name_mapping (never an engine-native metric name — those vary by engine version). source=platform: an orchestration-level metric (e.g. kube_pod_container_status_restarts_total).",
+      "properties": {
+        "source": { "enum": ["gateway", "client", "engine", "platform"] },
+        "metric": { "type": "string", "pattern": "^[a-zA-Z_:][a-zA-Z0-9_:]*$" },
+        "expectation": { "type": "string", "minLength": 1, "description": "Expected movement, including relevant label constraints (e.g. increases with stage=pre-first-token)." }
+      }
+    }
+  }
+}

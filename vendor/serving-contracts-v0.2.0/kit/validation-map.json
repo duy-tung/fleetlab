@@ -1,0 +1,44 @@
+{
+  "$comment": "Validation targets are derivable from fixture paths (ADR-0004); this file carries that mapping as configuration, not code heuristics. Rules are matched in order against the fixture path relative to examples/ ('*' does not cross '/', '**' does; first match wins). Fixtures under an invalid/ directory MUST fail validation; everything else MUST pass. Schemas named without an 'api.' prefix are auto-discovered from schemas/*.schema.json — new schema files need no kit change, only fixture rules here once their examples/ area lands. The deployment/, faults/, capacity/, and fleet/ rules pre-seeded at SC-T008 became active unchanged when the SC-T006/SC-T007 fixtures landed (v0.2.0). Ordering note for fleet/: the four filename rules match in order (hardware-, model-, slo-, cost-), so fleet fixture filenames must not contain an earlier rule's prefix as a substring.",
+  "api_schemas": {
+    "$comment": "api.* schemas resolve into openapi/inference-api.yaml component schemas (JSON Schema 2020-12 dialect per ADR-0003). 'api.stream-event' is the per-SSE-event payload: oneOf chunk | error envelope.",
+    "api.chat-completion-request": { "ref": "#/components/schemas/ChatCompletionRequest" },
+    "api.chat-completion-response": { "ref": "#/components/schemas/ChatCompletionResponse" },
+    "api.chat-completion-chunk": { "ref": "#/components/schemas/ChatCompletionChunk" },
+    "api.error-response": { "ref": "#/components/schemas/ErrorResponse" },
+    "api.models-response": { "ref": "#/components/schemas/ModelList" },
+    "api.stream-event": {
+      "one_of_refs": [
+        "#/components/schemas/ChatCompletionChunk",
+        "#/components/schemas/ErrorResponse"
+      ]
+    }
+  },
+  "fixture_rules": [
+    { "glob": "api/chat-completion-request*.json", "schema": "api.chat-completion-request" },
+    { "glob": "api/chat-completion-response.json", "schema": "api.chat-completion-response" },
+    { "glob": "api/models-response.json", "schema": "api.models-response" },
+    { "glob": "api/error-*.json", "schema": "api.error-response" },
+    { "glob": "api/*.sse", "schema": "api.stream-event" },
+    { "glob": "api/invalid/request-*.json", "schema": "api.chat-completion-request" },
+    { "glob": "api/invalid/error-*.json", "schema": "api.error-response" },
+    { "glob": "workloads/*.json", "schema": "workload" },
+    { "glob": "workloads/invalid/*.json", "schema": "workload" },
+    { "glob": "benchmark/run-manifest*.json", "schema": "benchmark-run" },
+    { "glob": "benchmark/raw-events*.jsonl", "schema": "raw-event" },
+    { "glob": "benchmark/result*.json", "schema": "benchmark-result" },
+    { "glob": "benchmark/invalid/incomplete-manifest.json", "schema": "benchmark-run" },
+    { "glob": "benchmark/invalid/raw-event-*.jsonl", "schema": "raw-event" },
+    { "glob": "benchmark/invalid/result-*.json", "schema": "benchmark-result" },
+    { "glob": "capabilities/*.json", "schema": "backend-capability" },
+    { "glob": "capabilities/invalid/*.json", "schema": "backend-capability" },
+    { "glob": "deployment/**.json", "schema": "deployment-contract" },
+    { "glob": "faults/**.json", "schema": "fault-scenario" },
+    { "glob": "capacity/**.json", "schema": "capacity-recommendation" },
+    { "glob": "fleet/**hardware-*.json", "schema": "hardware-profile" },
+    { "glob": "fleet/**model-*.json", "schema": "model-profile" },
+    { "glob": "fleet/**slo-*.json", "schema": "slo" },
+    { "glob": "fleet/**cost-*.json", "schema": "cost-profile" }
+  ],
+  "ignore": ["**.reason.txt", "**README.md"]
+}

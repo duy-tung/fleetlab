@@ -1,0 +1,868 @@
+# Contract 1 — Inference API (OpenAI-compatible subset)
+#
+# Owner: serving-contracts. Consumers: infergate (implements), inferbench (drives),
+# inferops (smoke tests), inference-lab (demos).
+# OpenAPI version pinned by ADR-0003 (3.1.x; re-confirmed 2026-07-10 at SC-T002: 3.1.0).
+# Schema dialect is JSON Schema 2020-12, per ADR-0002 (OpenAPI 3.1 native dialect).
+# Statements with MUST/MUST NOT are normative; everything else is explanatory.
+openapi: 3.1.0
+
+info:
+  title: Inference API (OpenAI-compatible subset)
+  version: 0.1.0
+  license:
+    name: Apache-2.0
+    identifier: Apache-2.0
+  summary: >-
+    OpenAI-compatible chat-completions subset with normative streaming, error,
+    request-ID, and cancellation semantics.
+  description: |
+    This contract defines the **only** shared inference API surface of the program.
+    The gateway's admin API (`/admin/v1/...`) is repo-private to infergate and is
+    deliberately NOT part of this contract.
+
+    ## Supported request subset (rejection, not ignore)
+
+    `POST /v1/chat/completions` accepts **exactly** these request fields:
+    `model`, `messages`, `max_tokens`, `max_completion_tokens`, `temperature`,
+    `top_p`, `stream`, `stream_options.include_usage`, `stop`, `seed`, `user`.
+
+    **Any other field, at any nesting level of the request body, MUST be rejected
+    with a typed error (`400`, `type: "invalid_request"`, `code: "unsupported_field"`,
+    `param` naming the offending field path). Unsupported fields MUST NOT be silently
+    ignored or dropped.** This rule is encoded machine-checkably: every request schema
+    object in this document sets `additionalProperties: false`. A supported field
+    carrying an unsupported value shape (e.g. array-of-parts `content`) is rejected
+    with `code: "unsupported_value"`. At most one of `max_tokens` /
+    `max_completion_tokens` may be set (`code: "conflicting_parameters"` otherwise).
+
+    Response objects mirror the OpenAI chat-completion and chunk shapes for the
+    supported subset. Because `n` is unsupported, every response carries exactly one
+    choice with `index: 0`.
+
+    ## Streaming semantics (SSE) — normative
+
+    When `stream: true`, the response is `text/event-stream` and the following rules
+    are binding:
+
+    1. **Framing.** Each event is a single `data: <json-chunk>` line whose payload is
+       a `ChatCompletionChunk` JSON object, followed by a blank line. The stream
+       terminates with the sentinel event `data: [DONE]` after the last chunk of a
+       *successful* stream.
+    2. **Flush.** Every event MUST be flushed to the client when written — no
+       buffering of multiple events, no waiting for stream end.
+    3. **Chunk indices.** Every SSE event (including the error event and `[DONE]`)
+       MUST carry the SSE `id:` field holding the zero-based chunk index for this
+       stream, strictly monotonically increasing by 1. Standard OpenAI clients ignore
+       the SSE `id` field, so this is a compatible extension; conformance checkers
+       use it to verify ordering.
+    4. **No interleaving.** Events of one request MUST NOT interleave with events of
+       any other request on the wire; a response stream carries only its own chunks.
+    5. **Usage in stream.** When the request set `stream_options.include_usage: true`,
+       the final chunk before `data: [DONE]` MUST have `choices: []` and a non-null
+       `usage` object covering the whole request. Chunks before it either omit
+       `usage` or carry `usage: null`. When `include_usage` is absent or false, no
+       usage chunk is sent.
+    6. **Mid-stream failure.** If the stream fails after the first chunk was sent,
+       the server MUST emit one standardized SSE error event —
+       `data: <ErrorResponse-json>` (the same envelope as non-stream errors, with
+       `request_id`) — and then close the stream. `data: [DONE]` MUST NOT follow an
+       error event. A mid-stream failure MUST NEVER be retried by the gateway
+       (post-first-token retry would duplicate sampled output and double-bill);
+       tokens already delivered are billable (see Cancellation).
+
+    ## Error envelope and taxonomy — normative
+
+    Every non-2xx response body, and every mid-stream error event, is the envelope
+    `{"error": {"message", "type", "code", "param", "request_id"}}`
+    (`request_id` is a required extension over the OpenAI envelope; see Request-ID
+    contract). The full taxonomy with HTTP status and retryability is machine-readable
+    under `x-error-taxonomy` at the root of this document. Retryability meaning:
+    `never` — do not auto-retry; `after_retry_after` — retry only after honoring the
+    mandatory `Retry-After` header; `pre_first_token_only` — a retry (client- or
+    gateway-side) is permitted only if no token/chunk of this request was received.
+    **Global rule: nothing is ever retried after the first token.**
+
+    Leak rules (normative): `error.message` MUST NOT contain internal addresses,
+    hostnames, ports, topology, stack traces, internal file paths, upstream
+    credentials, auth headers, or connection strings, and MUST NOT pass raw upstream
+    error bodies through verbatim — upstream failures are classified into
+    `upstream_error` / `upstream_timeout`. The `request_id` is the correlation handle
+    to full detail in traces/logs.
+
+    ## Request-ID contract — normative
+
+    - Clients MAY send `X-Request-Id` (`^[A-Za-z0-9_-]{1,128}$`). If absent or
+      invalid, the gateway MUST generate one (recommended form `req_<unique>`).
+    - The effective request ID MUST be echoed in the `X-Request-Id` response header
+      of **every** response from `/v1/*` endpoints (success and error, stream and
+      non-stream), in every error body (`error.request_id`), in traces
+      (`inference.request_id`, Contract 2), and in usage records.
+    - The request ID is the **idempotency key for usage settlement**: settlement of
+      the same request ID MUST be applied at most once (duplicate settlement attempts
+      are deduplicated, e.g. during backlog drain after a usage-store outage).
+
+    ## Cancellation contract — normative
+
+    - Client disconnect or explicit connection close MUST propagate upstream
+      (HTTP body close toward the backend). Observable effects — engine abort and
+      resource release — are part of conformance (measured via Contract 4 capability
+      observability and Contract 6 fault scenarios).
+    - Tokens emitted before the cancellation point are **billable** and MUST be
+      settled under the request ID with the `canceled` classification.
+    - `canceled` is never delivered as an HTTP response to the disconnecting client
+      (it is gone); gateways record it with status 499 by logging convention, in
+      metrics (`error_class`), and in usage records. A stream aborted server-side on
+      the upstream's behalf surfaces as a mid-stream error event instead.
+
+    ## Operational endpoints
+
+    `/healthz` (liveness), `/readyz` (readiness; MUST be `503` during model
+    load/warm-up per Contract 5), and `/metrics` (Prometheus exposition; vocabulary
+    is Contract 2) are unauthenticated operational endpoints; the request-ID and
+    error-envelope contracts apply to `/v1/*` endpoints only.
+
+tags:
+  - name: chat
+    description: Chat completions (stream and non-stream).
+  - name: models
+    description: Model listing.
+  - name: operational
+    description: Liveness, readiness, and metrics endpoints.
+
+servers:
+  - url: https://gateway.serving-contracts.invalid
+    description: >-
+      Placeholder (RFC 2606 .invalid) — deployment addresses come from Contract 5
+      descriptors.
+
+security:
+  - bearerAuth: []
+
+# Machine-readable error taxonomy (normative).
+# retryable: never | after_retry_after | pre_first_token_only
+x-error-taxonomy:
+  - type: invalid_request
+    http_status: 400
+    retryable: never
+    retry_after_header: false
+    description: >-
+      Malformed body, unsupported field (code "unsupported_field"), unsupported value
+      shape (code "unsupported_value"), or conflicting parameters
+      (code "conflicting_parameters").
+  - type: authentication
+    http_status: 401
+    retryable: never
+    retry_after_header: false
+    description: Missing or invalid credentials.
+  - type: permission
+    http_status: 403
+    retryable: never
+    retry_after_header: false
+    description: Authenticated but not authorized for the model or operation.
+  - type: not_found
+    http_status: 404
+    retryable: never
+    retry_after_header: false
+    description: Unknown model or resource (code "model_not_found" for unknown model).
+  - type: rate_limited
+    http_status: 429
+    retryable: after_retry_after
+    retry_after_header: true
+    description: Tenant/tier rate or quota exceeded. Retry-After header is mandatory.
+  - type: overloaded
+    http_status: 503
+    retryable: after_retry_after
+    retry_after_header: true
+    description: >-
+      Admission control shed the request (queue saturation, no healthy backend
+      capacity). Retry-After header is mandatory.
+  - type: upstream_error
+    http_status: 502
+    retryable: pre_first_token_only
+    retry_after_header: false
+    description: >-
+      Backend failed or returned an unclassifiable error. Raw upstream bodies are
+      never passed through. Mid-stream occurrence becomes an SSE error event and is
+      never retried.
+  - type: upstream_timeout
+    http_status: 504
+    retryable: pre_first_token_only
+    retry_after_header: false
+    description: >-
+      Backend exceeded a deadline (connect, first token, or inter-chunk stall).
+      Mid-stream occurrence becomes an SSE error event and is never retried.
+  - type: canceled
+    http_status: 499
+    retryable: never
+    retry_after_header: false
+    description: >-
+      Client disconnected (or the request was aborted on the client's behalf) before
+      completion. Status 499 is a logging/metrics convention — no HTTP response is
+      delivered to the disconnected client. Tokens emitted before cancellation are
+      billable.
+  - type: internal
+    http_status: 500
+    retryable: pre_first_token_only
+    retry_after_header: false
+    description: Unexpected gateway-side failure. Message leaks nothing internal.
+
+paths:
+  /v1/chat/completions:
+    post:
+      operationId: createChatCompletion
+      tags: [chat]
+      summary: Create a chat completion (stream or non-stream)
+      description: |
+        OpenAI-compatible chat completion restricted to the supported subset (see
+        `info.description`). With `stream: false` (default) the response is a single
+        `application/json` chat-completion object. With `stream: true` the response
+        is `text/event-stream` governed by the normative SSE semantics: `data:`
+        framing, per-event flush, SSE `id:` chunk indices, usage-in-final-chunk when
+        `stream_options.include_usage: true`, terminal `data: [DONE]`, standardized
+        mid-stream error event (never retried), no cross-request interleaving.
+      parameters:
+        - $ref: '#/components/parameters/XRequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatCompletionRequest'
+            examples:
+              non-stream:
+                summary: >-
+                  Non-streaming request (golden fixture chat-completion-request.json;
+                  streaming request fixtures: chat-completion-request-stream*.json)
+                value:
+                  model: mock-8b
+                  messages:
+                    - role: system
+                      content: You are a terse assistant.
+                    - role: user
+                      content: Say hello.
+                  max_completion_tokens: 64
+                  temperature: 0.2
+                  top_p: 0.9
+                  stop: ["\n\n"]
+                  seed: 42
+                  user: fixture-user-01
+      responses:
+        '200':
+          description: |
+            Success. `application/json` for non-stream requests; `text/event-stream`
+            for `stream: true` requests (each `data:` payload is a
+            `ChatCompletionChunk`, terminated by `data: [DONE]`; see the normative
+            SSE semantics in `info.description`).
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatCompletionResponse'
+            text/event-stream:
+              schema:
+                description: |
+                  Schema of each SSE event's JSON `data:` payload (the wire body is
+                  the SSE transcript, not a single JSON document). Every event:
+                  `id: <zero-based chunk index>` + `data: <payload>`. Payloads are
+                  `ChatCompletionChunk` objects; on mid-stream failure the final
+                  payload is a single `ErrorResponse` and the stream closes without
+                  `[DONE]`; a successful stream terminates with the non-JSON sentinel
+                  `data: [DONE]`. Golden transcripts: `examples/api/*.sse`.
+                oneOf:
+                  - $ref: '#/components/schemas/ChatCompletionChunk'
+                  - $ref: '#/components/schemas/ErrorResponse'
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '401':
+          $ref: '#/components/responses/AuthenticationError'
+        '403':
+          $ref: '#/components/responses/PermissionError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '429':
+          $ref: '#/components/responses/RateLimitedError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '502':
+          $ref: '#/components/responses/UpstreamError'
+        '503':
+          $ref: '#/components/responses/OverloadedError'
+        '504':
+          $ref: '#/components/responses/UpstreamTimeoutError'
+
+  /v1/models:
+    get:
+      operationId: listModels
+      tags: [models]
+      summary: List available models
+      description: >-
+        Lists the models this deployment serves, mirroring the OpenAI list shape.
+      parameters:
+        - $ref: '#/components/parameters/XRequestId'
+      responses:
+        '200':
+          description: Model list.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/XRequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelList'
+        '401':
+          $ref: '#/components/responses/AuthenticationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /healthz:
+    get:
+      operationId: getHealthz
+      tags: [operational]
+      summary: Liveness probe
+      description: >-
+        Returns 200 while the process is alive. Unauthenticated. Liveness MUST NOT
+        depend on backend or model state (that is readiness).
+      security: []
+      responses:
+        '200':
+          description: Process is alive.
+          content:
+            text/plain:
+              schema:
+                type: string
+                const: ok
+
+  /readyz:
+    get:
+      operationId: getReadyz
+      tags: [operational]
+      summary: Readiness probe
+      description: >-
+        Returns 200 only when the instance may receive traffic. MUST return 503
+        during model load/warm-up and during drain (warm-up-aware readiness,
+        Contract 5). Unauthenticated.
+      security: []
+      responses:
+        '200':
+          description: Ready to receive traffic.
+          content:
+            text/plain:
+              schema:
+                type: string
+                const: ok
+        '503':
+          description: Not ready (loading, warming up, or draining). Plain-text reason.
+          content:
+            text/plain:
+              schema:
+                type: string
+                examples: ["warming-up"]
+
+  /metrics:
+    get:
+      operationId: getMetrics
+      tags: [operational]
+      summary: Prometheus metrics
+      description: >-
+        Prometheus text exposition format. The metric names, types, labels, and
+        measurement points are Contract 2 (`metrics/metrics.md`); the cardinality
+        policy (`metrics/cardinality-policy.md`) is binding. Unauthenticated.
+      security: []
+      responses:
+        '200':
+          description: Prometheus text exposition.
+          content:
+            text/plain:
+              schema:
+                type: string
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: >-
+        API key as bearer token (`Authorization: Bearer <key>`). Missing/invalid
+        credentials yield the `authentication` error class; valid credentials without
+        access to the requested model yield `permission`.
+
+  parameters:
+    XRequestId:
+      name: X-Request-Id
+      in: header
+      required: false
+      description: >-
+        Client-supplied request ID. If absent or not matching the pattern, the
+        gateway generates one. Echoed on every response; idempotency key for usage
+        settlement.
+      schema:
+        type: string
+        pattern: '^[A-Za-z0-9_-]{1,128}$'
+
+  headers:
+    XRequestId:
+      description: >-
+        The effective request ID (client-supplied or gateway-generated). Present on
+        every `/v1/*` response, success or error.
+      required: true
+      schema:
+        type: string
+        pattern: '^[A-Za-z0-9_-]{1,128}$'
+    RetryAfter:
+      description: >-
+        Seconds to wait before retrying. Mandatory on 429 (rate_limited) and
+        503 (overloaded).
+      required: true
+      schema:
+        type: integer
+        minimum: 0
+
+  responses:
+    InvalidRequest:
+      description: >-
+        invalid_request — malformed body, unsupported field/value
+        (rejection-not-ignore rule), or conflicting parameters. Never retryable.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/XRequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            unsupported-field:
+              summary: Unsupported field rejected, never ignored
+              value:
+                error:
+                  message: "Unsupported field: 'tools' is not part of the supported request subset."
+                  type: invalid_request
+                  code: unsupported_field
+                  param: tools
+                  request_id: req_fixture_0400
+    AuthenticationError:
+      description: authentication — missing or invalid credentials. Never retryable.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/XRequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    PermissionError:
+      description: permission — authenticated but not authorized. Never retryable.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/XRequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFoundError:
+      description: not_found — unknown model or resource. Never retryable.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/XRequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    RateLimitedError:
+      description: >-
+        rate_limited — tenant/tier rate or quota exceeded. Retryable only after
+        honoring the mandatory Retry-After header.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/XRequestId'
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    OverloadedError:
+      description: >-
+        overloaded — admission control shed the request. Retryable only after
+        honoring the mandatory Retry-After header.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/XRequestId'
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    UpstreamError:
+      description: >-
+        upstream_error — backend failure, classified (raw upstream bodies never pass
+        through). Retryable pre-first-token only.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/XRequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    UpstreamTimeoutError:
+      description: >-
+        upstream_timeout — backend deadline exceeded. Retryable pre-first-token only.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/XRequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    InternalError:
+      description: >-
+        internal — unexpected gateway-side failure; message leaks nothing internal.
+        Retryable pre-first-token only.
+      headers:
+        X-Request-Id:
+          $ref: '#/components/headers/XRequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    ChatCompletionRequest:
+      type: object
+      description: |
+        The complete supported request subset. `additionalProperties: false` at every
+        level encodes the normative rejection-not-ignore rule: any field outside this
+        schema MUST produce a 400 `invalid_request` / `unsupported_field` error and
+        MUST NOT be silently ignored.
+      required: [model, messages]
+      additionalProperties: false
+      properties:
+        model:
+          type: string
+          minLength: 1
+          description: Model ID as listed by `GET /v1/models`.
+        messages:
+          type: array
+          minItems: 1
+          description: Conversation so far. Only string content is supported.
+          items:
+            $ref: '#/components/schemas/ChatMessage'
+        max_tokens:
+          type: [integer, 'null']
+          minimum: 1
+          description: >-
+            Maximum completion tokens (legacy OpenAI name). Mutually exclusive with
+            `max_completion_tokens`; setting both is `invalid_request` /
+            `conflicting_parameters`.
+        max_completion_tokens:
+          type: [integer, 'null']
+          minimum: 1
+          description: >-
+            Maximum completion tokens (current OpenAI name). Mutually exclusive with
+            `max_tokens`.
+        temperature:
+          type: [number, 'null']
+          minimum: 0
+          maximum: 2
+          description: Sampling temperature. Server default applies when null/absent.
+        top_p:
+          type: [number, 'null']
+          exclusiveMinimum: 0
+          maximum: 1
+          description: Nucleus sampling probability mass.
+        stream:
+          type: [boolean, 'null']
+          description: >-
+            When true, respond as `text/event-stream` per the normative SSE
+            semantics. Default false.
+        stream_options:
+          oneOf:
+            - $ref: '#/components/schemas/StreamOptions'
+            - type: 'null'
+          description: >-
+            Streaming options; only valid alongside `stream: true`
+            (otherwise `invalid_request` / `conflicting_parameters`).
+        stop:
+          description: Up to 4 stop sequences (string or array of strings).
+          oneOf:
+            - type: string
+              minLength: 1
+            - type: array
+              minItems: 1
+              maxItems: 4
+              items:
+                type: string
+                minLength: 1
+            - type: 'null'
+        seed:
+          type: [integer, 'null']
+          description: >-
+            Best-effort deterministic sampling seed (determinism is engine-dependent
+            and not guaranteed by this contract).
+        user:
+          type: [string, 'null']
+          maxLength: 256
+          description: >-
+            Opaque end-user identifier for abuse tracking. MUST NOT be used as a
+            metric label (cardinality policy, Contract 2).
+      not:
+        description: max_tokens and max_completion_tokens are mutually exclusive.
+        properties:
+          max_tokens: {}
+          max_completion_tokens: {}
+        required: [max_tokens, max_completion_tokens]
+      dependentSchemas:
+        stream_options:
+          description: stream_options requires stream to be explicitly true.
+          properties:
+            stream:
+              const: true
+          required: [stream]
+
+    ChatMessage:
+      type: object
+      description: >-
+        Input message. Only `role` + string `content` are supported; any other member
+        (`name`, `tool_calls`, `tool_call_id`, array-of-parts content, ...) is
+        rejected per the rejection-not-ignore rule.
+      required: [role, content]
+      additionalProperties: false
+      properties:
+        role:
+          type: string
+          enum: [system, user, assistant]
+        content:
+          type: string
+          description: >-
+            Message text. Structured content parts (arrays) are unsupported and
+            rejected with `code: "unsupported_value"`.
+
+    StreamOptions:
+      type: object
+      description: Supported streaming options — exactly one field.
+      additionalProperties: false
+      properties:
+        include_usage:
+          type: boolean
+          description: >-
+            When true, the final chunk before `data: [DONE]` has `choices: []` and a
+            non-null `usage` object for the whole request.
+
+    ChatCompletionResponse:
+      type: object
+      description: >-
+        Non-stream completion, mirroring the OpenAI `chat.completion` shape for the
+        supported subset. Exactly one choice (index 0), since `n` is unsupported.
+      required: [id, object, created, model, choices, usage]
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          minLength: 1
+          description: Completion ID (distinct from the request ID; e.g. `chatcmpl-...`).
+        object:
+          const: chat.completion
+        created:
+          type: integer
+          description: Unix seconds at creation time.
+        model:
+          type: string
+          description: Model that produced the completion.
+        choices:
+          type: array
+          minItems: 1
+          maxItems: 1
+          items:
+            $ref: '#/components/schemas/ChatCompletionChoice'
+        usage:
+          $ref: '#/components/schemas/Usage'
+
+    ChatCompletionChoice:
+      type: object
+      required: [index, message, finish_reason]
+      additionalProperties: false
+      properties:
+        index:
+          const: 0
+          description: Always 0 — `n` is unsupported.
+        message:
+          type: object
+          required: [role, content]
+          additionalProperties: false
+          properties:
+            role:
+              const: assistant
+            content:
+              type: string
+        finish_reason:
+          type: string
+          enum: [stop, length]
+          description: >-
+            `stop` — natural stop or stop sequence; `length` — completion-token limit
+            reached. (Canceled/failed requests never produce a completion object.)
+
+    ChatCompletionChunk:
+      type: object
+      description: >-
+        One streamed SSE `data:` payload, mirroring the OpenAI
+        `chat.completion.chunk` shape for the supported subset. The usage-only final
+        chunk (when `stream_options.include_usage: true`) has `choices: []` and
+        non-null `usage`.
+      required: [id, object, created, model, choices]
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          minLength: 1
+          description: >-
+            Completion ID; identical across all chunks of one stream.
+        object:
+          const: chat.completion.chunk
+        created:
+          type: integer
+          description: Unix seconds; identical across all chunks of one stream.
+        model:
+          type: string
+        choices:
+          type: array
+          maxItems: 1
+          description: >-
+            Exactly one element (index 0) on content chunks; empty ONLY on the final
+            usage chunk.
+          items:
+            $ref: '#/components/schemas/ChatCompletionChunkChoice'
+        usage:
+          oneOf:
+            - $ref: '#/components/schemas/Usage'
+            - type: 'null'
+          description: >-
+            Non-null only on the final usage chunk when
+            `stream_options.include_usage: true`; other chunks omit it or carry null.
+
+    ChatCompletionChunkChoice:
+      type: object
+      required: [index, delta]
+      additionalProperties: false
+      properties:
+        index:
+          const: 0
+          description: Always 0 — `n` is unsupported.
+        delta:
+          type: object
+          additionalProperties: false
+          description: >-
+            Incremental content. First chunk carries `role`; the chunk bearing
+            `finish_reason` carries an empty delta.
+          properties:
+            role:
+              const: assistant
+            content:
+              type: string
+        finish_reason:
+          type: [string, 'null']
+          enum: [stop, length, null]
+          description: Non-null exactly once, on the last content chunk of the stream.
+
+    Usage:
+      type: object
+      description: >-
+        Token accounting. Under cancellation, tokens emitted before the cancellation
+        point are billable and appear here (usage records settle idempotently on the
+        request ID).
+      required: [prompt_tokens, completion_tokens, total_tokens]
+      additionalProperties: false
+      properties:
+        prompt_tokens:
+          type: integer
+          minimum: 0
+        completion_tokens:
+          type: integer
+          minimum: 0
+        total_tokens:
+          type: integer
+          minimum: 0
+
+    ErrorResponse:
+      type: object
+      description: >-
+        The error envelope used by every non-2xx `/v1/*` response body and by the
+        mid-stream SSE error event. `request_id` is a required extension over the
+        OpenAI envelope (the request-ID contract requires the ID in error bodies).
+      required: [error]
+      additionalProperties: false
+      properties:
+        error:
+          type: object
+          required: [message, type, code, param, request_id]
+          additionalProperties: false
+          properties:
+            message:
+              type: string
+              description: >-
+                Human-readable summary. MUST NOT leak internal addresses/topology,
+                stack traces, internal paths, credentials, or raw upstream bodies.
+            type:
+              type: string
+              description: Error class (the normative taxonomy; see x-error-taxonomy).
+              enum:
+                - invalid_request
+                - authentication
+                - permission
+                - not_found
+                - rate_limited
+                - overloaded
+                - upstream_error
+                - upstream_timeout
+                - canceled
+                - internal
+            code:
+              type: [string, 'null']
+              description: >-
+                Machine-readable detail code within the class, or null. Defined codes
+                include: `unsupported_field`, `unsupported_value`,
+                `conflicting_parameters`, `missing_required_field`, `invalid_type`,
+                `model_not_found`. The set is open for MINOR extension.
+            param:
+              type: [string, 'null']
+              description: >-
+                Path of the offending request field (e.g. `tools`,
+                `messages[0].content`, `stream_options.foo`), or null when not
+                field-specific.
+            request_id:
+              type: string
+              pattern: '^[A-Za-z0-9_-]{1,128}$'
+              description: >-
+                The effective request ID — the correlation handle to traces/logs and
+                the idempotency key for usage settlement.
+
+    ModelList:
+      type: object
+      description: OpenAI-compatible model list.
+      required: [object, data]
+      additionalProperties: false
+      properties:
+        object:
+          const: list
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Model'
+
+    Model:
+      type: object
+      required: [id, object, created, owned_by]
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          minLength: 1
+          description: Model ID usable as `ChatCompletionRequest.model`.
+        object:
+          const: model
+        created:
+          type: integer
+          description: Unix seconds.
+        owned_by:
+          type: string

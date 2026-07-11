@@ -1,0 +1,138 @@
+{
+  "recommendation_id": "rec-2026-07-10-chatshort-a10g-scaleout-001",
+  "created_at": "2026-07-10T15:00:00Z",
+  "producer": {
+    "tool": "fleetlab",
+    "version": "0.1.0"
+  },
+  "inputs": {
+    "benchmark_result_ids": ["res-2026-07-10-chatshort-vllm-a10g-001"],
+    "workload_ref": { "name": "chat-short", "version": "0.1.0" },
+    "slo_ref": { "id": "slo-chat-interactive", "version": "0.1.0" },
+    "cost_profile_ref": { "id": "cost-g5-xlarge-ondemand", "version": "0.1.0" },
+    "hardware_profile_refs": [{ "id": "hardware-a10g-g5-xlarge", "version": "0.1.0" }],
+    "model_profile_ref": { "id": "model-llama31-8b", "version": "0.1.0" },
+    "demand_forecast": {
+      "peak_rps": 18,
+      "basis": "stated planning assumption for the Scenario E exercise (no production traffic exists); carried as an assumption below"
+    }
+  },
+  "recommended_topology": {
+    "baseline": "1x g5.xlarge (hardware-a10g-g5-xlarge) replica running vLLM 0.9.1 with the flags below — the measured topology of res-2026-07-10-chatshort-vllm-a10g-001 (per-replica goodput 7.41 rps at 8 rps offered, knee estimate 11.5 rps)",
+    "change_summary": "scale out 1 -> 3 replicas on the same hardware profile and engine configuration to serve the 18 rps forecast peak within slo-chat-interactive",
+    "replica_groups": [
+      {
+        "hardware_profile_ref": { "id": "hardware-a10g-g5-xlarge", "version": "0.1.0" },
+        "replica_count": 3,
+        "engine_config": {
+          "engine": { "name": "vllm", "version": "0.9.1" },
+          "flags": {
+            "max_num_seqs": 256,
+            "max_num_batched_tokens": 8192,
+            "gpu_memory_utilization": 0.9,
+            "prefix_caching": true,
+            "chunked_prefill": true,
+            "quantization": null,
+            "kv_cache_dtype": "auto",
+            "speculative_decoding": null
+          }
+        }
+      }
+    ]
+  },
+  "predictions": {
+    "goodput": {
+      "requests_per_second_meeting_slo": {
+        "value": 21.6,
+        "unit": "requests_per_second",
+        "uncertainty": {
+          "lower": 19.8,
+          "upper": 22.8,
+          "confidence": 0.8,
+          "method": "linear per-replica scaling from the single-replica pooled measurement (3 x 7.41 rps), minus an assumed 3% routing/imbalance penalty; interval from the measured run-to-run spread plus an assumed +/-5% scaling-model error"
+        }
+      },
+      "at_offered_rps": 18
+    },
+    "latency": {
+      "ttft_seconds_p95": {
+        "value": 0.45,
+        "unit": "seconds",
+        "uncertainty": {
+          "lower": 0.38,
+          "upper": 0.55,
+          "confidence": 0.8,
+          "method": "measured single-replica p95 (0.42) at comparable per-replica load (6 rps/replica at forecast peak vs 8 rps measured), widened by the assumed routing-imbalance margin"
+        }
+      },
+      "e2e_duration_seconds_p95": {
+        "value": 9.3,
+        "unit": "seconds",
+        "uncertainty": {
+          "lower": 8.5,
+          "upper": 10.5,
+          "confidence": 0.8,
+          "method": "measured single-replica p95 carried over (e2e dominated by generation length, not fleet size); interval from measured run-to-run spread"
+        }
+      }
+    },
+    "cost": {
+      "usd_per_hour": {
+        "value": 3.018,
+        "unit": "usd_per_hour",
+        "uncertainty": {
+          "lower": 3.018,
+          "upper": 3.018,
+          "confidence": 0.95,
+          "method": "deterministic: 3 x 1.006 USD/h on-demand rate from cost-g5-xlarge-ondemand@0.1.0 (rate itself is source-reported as of 2026-07-10 — re-verify at use time)"
+        }
+      },
+      "usd_per_successful_request": {
+        "value": 0.0000388,
+        "unit": "usd_per_successful_request",
+        "uncertainty": {
+          "lower": 0.0000368,
+          "upper": 0.0000423,
+          "confidence": 0.8,
+          "method": "3.018 USD/h divided by predicted goodput interval (19.8-22.8 rps) converted to requests/hour"
+        }
+      }
+    }
+  },
+  "autoscaling": {
+    "signal": {
+      "source": "gateway",
+      "metric": "inference_queue_wait_seconds",
+      "statistic": "p95 over 1m"
+    },
+    "thresholds": {
+      "scale_out": { "comparator": ">", "value": 0.5, "for_seconds": 60 },
+      "scale_in": { "comparator": "<", "value": 0.05, "for_seconds": 300 }
+    },
+    "bounds": { "min_replicas": 2, "max_replicas": 4 },
+    "notes": "queue wait is the earliest gateway-side saturation signal (admission-enqueue to dispatch, Contract 2 measurement points) and is engine-agnostic; engine-side alternatives (queue_waiting_requests via the capability name_mapping) are viable but couple the autoscaler to engine metric availability. Asymmetric sustain windows damp flapping on the bursty tail."
+  },
+  "assumptions": [
+    "goodput scales linearly with replica count behind least-loaded routing, degraded by a 3% imbalance penalty (assumed, not yet measured at 3 replicas)",
+    "traffic matches workload chat-short@0.1.0 (arrival mix, length distributions, no prefix sharing) — the measured basis of the input benchmark result",
+    "no cross-replica prefix-cache sharing exists or is modeled (per-replica caches only)",
+    "demand forecast peak of 18 rps is a stated planning assumption, not measured traffic",
+    "engine configuration, model revision, and hardware are held exactly at the measured pins (any change invalidates the scaling basis per the benchmark comparability rule)"
+  ],
+  "sensitivity_notes": [
+    "most sensitive to output-length distribution: a +20% shift in mean output tokens reduces per-replica goodput by roughly 15% and moves the recommendation to 4 replicas at the same forecast",
+    "knee estimate of the input result carries confidence 0.8 from a 6-point rate sweep; if the true knee is below 10 rps/replica, 3 replicas cannot hold 18 rps within SLO",
+    "switching the cost basis to the spot rate (assumed 0.42 USD/h) cuts cost ~58% but adds unmodeled preemption risk (drain semantics of fs-05 limit, not eliminate, the impact)",
+    "the 3% routing-imbalance penalty is assumed; if measured imbalance exceeds ~10%, the goodput lower bound no longer covers the forecast peak"
+  ],
+  "re_measurement": {
+    "workload_ref": { "name": "chat-short", "version": "0.1.0", "seed": 20260710 },
+    "single_declared_variable": "replica_count 1 -> 3 (engine flags, model revision meta-llama/Llama-3.1-8B-Instruct@0e9e39f2, hardware profile, workload version+seed, and warm-up policy all held at the pins of res-2026-07-10-chatshort-vllm-a10g-001, per the benchmark comparability rule)",
+    "success_criteria": [
+      "pooled goodput >= 19.8 rps (prediction lower bound) at 18 rps offered, evaluated against slo-chat-interactive@0.1.0",
+      "ttft_seconds p95 <= 0.5 s (SLO threshold)",
+      "shed_rate and stall_rate reported adjacent to goodput remain < 0.02 (goodput not bought by shedding or stalling)"
+    ]
+  },
+  "notes": "Example fixture; all values illustrative. Scenario E chain: benchmark result res-2026-07-10-chatshort-vllm-a10g-001 (examples/benchmark/result.json) -> this recommendation -> topology change (baseline 1 replica -> 3 replicas; deployment shape per examples/deployment/vllm-backend.json) -> re_measurement plan above."
+}

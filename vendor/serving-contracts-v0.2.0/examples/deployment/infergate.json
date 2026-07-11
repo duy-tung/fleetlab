@@ -1,0 +1,87 @@
+{
+  "component": "infergate",
+  "release": "0.3.0",
+  "image": {
+    "repository": "ghcr.io/duy-tung/infergate",
+    "tag": "0.3.0",
+    "digest": "sha256:7f3b1c9a2d4e5f60718293a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4"
+  },
+  "ports": {
+    "api": { "port": 8080, "protocol": "http" },
+    "metrics": { "port": 9090, "path": "/metrics" }
+  },
+  "env": [
+    { "name": "INFERGATE_CONFIG_PATH", "value": "/etc/infergate/config.yaml", "purpose": "location of the mounted gateway config" },
+    { "name": "INFERGATE_USAGE_DB_DSN", "from_secret": "usage-db-credentials", "purpose": "usage settlement database connection string" },
+    { "name": "INFERGATE_LOG_LEVEL", "value": "info", "purpose": "log verbosity" }
+  ],
+  "config_mounts": [
+    {
+      "name": "gateway-config",
+      "mount_path": "/etc/infergate",
+      "purpose": "routing, admission limits, tenant tiers, backend pool",
+      "reload_semantics": "atomic snapshot swap on change; in-flight requests finish on the snapshot they started with; zero dropped streams (fault scenario fs-08); effective within the config-publish SLO (<= 5s)"
+    }
+  ],
+  "probes": {
+    "startup": {
+      "endpoint": "/healthz",
+      "port": 8080,
+      "period_seconds": 2,
+      "timeout_seconds": 1,
+      "failure_threshold": 15
+    },
+    "readiness": {
+      "endpoint": "/readyz",
+      "port": 8080,
+      "period_seconds": 5,
+      "timeout_seconds": 2,
+      "failure_threshold": 2,
+      "success_threshold": 1,
+      "warm_up": {
+        "ready_only_after_warm_up": true,
+        "warm_signal": "config snapshot loaded and the initial health probe of every configured backend has completed (gateway warm-up = knowing where it can route)",
+        "expected_warm_up_seconds": 10
+      }
+    },
+    "liveness": {
+      "endpoint": "/healthz",
+      "port": 8080,
+      "initial_delay_seconds": 10,
+      "period_seconds": 10,
+      "timeout_seconds": 2,
+      "failure_threshold": 3
+    }
+  },
+  "model_mount": null,
+  "resources": {
+    "requests": { "cpu": "500m", "memory": "512Mi" },
+    "limits": { "cpu": "2", "memory": "1Gi" },
+    "gpu": { "count": 0 }
+  },
+  "graceful_termination": {
+    "pre_stop": {
+      "initiates_drain": true,
+      "action": "fail /readyz immediately, stop accepting new requests, let in-flight streams run to completion (fault scenarios fs-05/fs-12)"
+    },
+    "termination_grace_period_seconds": 660,
+    "max_stream_duration_seconds": 600,
+    "grace_period_exceeds_max_stream_duration": true
+  },
+  "secrets": [
+    {
+      "name": "usage-db-credentials",
+      "purpose": "usage settlement database DSN (delivered as INFERGATE_USAGE_DB_DSN)",
+      "delivery": "env",
+      "required": true
+    },
+    {
+      "name": "api-key-signing-key",
+      "purpose": "verifies tenant API keys; rotation must take effect within the key-revocation SLO (<= 5s)",
+      "delivery": "file",
+      "mount_path": "/etc/infergate/keys",
+      "required": true
+    }
+  ],
+  "notes": "Example fixture; digest and versions illustrative. The gateway is GPU-free by construction (gpu.count=0) and serves no model (model_mount=null)."
+}

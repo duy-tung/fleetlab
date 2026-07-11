@@ -6,8 +6,8 @@ All integration is via versioned contracts and files. The contracts are owned by
 
 | Item | Value |
 |---|---|
-| Bundle version pinned | **NOT YET PINNED** — as of 2026-07-10 `serving-contracts` has no released tag. The pin is set at the start of FL-T002 and recorded here, in CI, and in every emitted artifact. |
-| Pinning mechanism | vendored/pinned bundle at a released tag; never fetched at runtime |
+| Bundle version pinned | **v0.2.0**, commit `484b44904233da569d76bafe4a4acb8d71bbbe4d` (pinned 2026-07-11, at the start of FL-T002). |
+| Pinning mechanism | Vendored read-only via `git -C serving-contracts archive 484b449 \| tar -x` into `vendor/serving-contracts-v0.2.0/` (schemas, examples, kit, openapi, docs). Never fetched at runtime; the constants live in `fleetlab/ingest/bundle.py` (`BUNDLE_VERSION`, `BUNDLE_COMMIT`). |
 | Pre-1.0 caveat | during v0.x, MINOR may break with a migration note; **contracts v1.0.0 (freezing Contract 1–3 shapes) is a prerequisite for I6** |
 | Re-validation | consumer fixture validation re-runs in CI on every contract release (I1 obligation); the v1.0.0 re-run is a prerequisite for I6 |
 

@@ -1,0 +1,210 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/duy-tung/serving-contracts/schemas/raw-event.schema.json",
+  "title": "Benchmark raw event (Contract 3)",
+  "description": "One record per request, emitted by inferbench as JSONL (one JSON object per line). Normative. Raw events are the pooling unit for benchmark-result percentiles: results MUST be computed from these records, never from per-run summaries. All latencies are client-side measurements in seconds (the client-side mirror series of metrics/metrics.md; the gateway-side series are separate by definition). Latency measurement basis (v0.2.0, coordinated-omission safety): client-side TTFT and end-to-end latency are measured from scheduled_send_ts, never from send_ts. Nullable required fields assert 'not applicable', never 'not recorded'.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "run_id",
+    "repetition",
+    "request_id",
+    "workload_item",
+    "scheduled_send_ts",
+    "send_ts",
+    "end_ts",
+    "status",
+    "error_class",
+    "ttft_seconds",
+    "itl",
+    "input_tokens",
+    "output_tokens",
+    "shed",
+    "retries",
+    "cancellation_point"
+  ],
+  "properties": {
+    "run_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Manifest run_id this event belongs to."
+    },
+    "repetition": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "1-based repetition index within the run set (manifest.repetitions)."
+    },
+    "request_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The X-Request-Id of the request (Contract 1); joins this record to gateway traces and usage records."
+    },
+    "workload_item": {
+      "type": ["integer", "string"],
+      "description": "Deterministic index or id of the workload item that generated this request (reproducible from workload version + seed)."
+    },
+    "scheduled_send_ts": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Schedule-plan send time for this request: when the workload's arrival process dictated it be sent, independent of whether the client could actually send it then. NORMATIVE measurement rule (coordinated-omission safety): client-side TTFT and end-to-end latency are measured from scheduled_send_ts, NOT send_ts, so that dispatch/connect/write delay (client-side queueing under saturation) is never excluded from the latency a request experienced; send_ts remains the actual wire-write time for diagnostic comparison."
+    },
+    "send_ts": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Client timestamp when the request body write completed (actual wire-write time). Diagnostic: NOT the latency measurement basis — that is scheduled_send_ts. send_ts - scheduled_send_ts is the send slip (see send_slip_seconds)."
+    },
+    "send_slip_seconds": {
+      "type": "number",
+      "minimum": 0,
+      "description": "OPTIONAL observability field: send_ts - scheduled_send_ts, the delay between the scheduled and actual send. Sustained growth is the signature of client-side saturation (the generator can no longer keep up with its own schedule) and belongs in the result's validity block when material."
+    },
+    "end_ts": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Client timestamp when the response stream closed (success, error, cancellation, or shed)."
+    },
+    "status": {
+      "enum": ["ok", "error", "canceled", "shed"],
+      "description": "Terminal outcome as observed by the client. shed = typed 429/503 rejection before any output."
+    },
+    "error_class": {
+      "enum": [
+        null,
+        "invalid_request",
+        "authentication",
+        "permission",
+        "not_found",
+        "rate_limited",
+        "overloaded",
+        "upstream_error",
+        "upstream_timeout",
+        "canceled",
+        "internal"
+      ],
+      "description": "Contract 1 error taxonomy value; null exactly when status is ok."
+    },
+    "ttft_seconds": {
+      "type": ["number", "null"],
+      "minimum": 0,
+      "description": "Client-side TTFT: scheduled_send_ts to first response body byte at the client (NOT send_ts — dispatch/connect/write queueing counts against latency; coordinated-omission safety). Null when no body byte ever arrived (shed, pre-first-token error)."
+    },
+    "itl": {
+      "description": "Inter-token/inter-chunk latency record: either the full gap series or a summary, always with the maximum stall. Null for requests with fewer than two content chunks. Pooled ITL percentiles in benchmark-result require the series form; summary-only events cannot be pooled and that limitation MUST appear in the result's validity block.",
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["max_stall_seconds"],
+          "properties": {
+            "series_seconds": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "type": "number", "minimum": 0 },
+              "description": "Gaps between consecutive content-bearing chunks, in arrival order."
+            },
+            "summary": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["count", "mean_seconds", "p50_seconds", "p95_seconds", "p99_seconds", "max_seconds"],
+              "properties": {
+                "count": { "type": "integer", "minimum": 1 },
+                "mean_seconds": { "type": "number", "minimum": 0 },
+                "p50_seconds": { "type": "number", "minimum": 0 },
+                "p95_seconds": { "type": "number", "minimum": 0 },
+                "p99_seconds": { "type": "number", "minimum": 0 },
+                "max_seconds": { "type": "number", "minimum": 0 }
+              }
+            },
+            "max_stall_seconds": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Largest single inter-chunk gap observed in this stream (the stall signal; compared against the SLO stall threshold for stall_rate)."
+            }
+          },
+          "oneOf": [
+            { "required": ["series_seconds"] },
+            { "required": ["summary"] }
+          ]
+        }
+      ]
+    },
+    "input_tokens": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Input token count per the manifest tokenizer (from the usage payload when available)."
+    },
+    "output_tokens": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Output tokens received before termination. Tokens emitted before cancellation are billable (Contract 1) and count here."
+    },
+    "shed": {
+      "type": "boolean",
+      "description": "True when the request was rejected by admission control (429/503 with Retry-After)."
+    },
+    "retries": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of retries performed for this logical request. Retries are pre-first-token only (Contract 1: mid-stream failures are never retried)."
+    },
+    "cancellation_point": {
+      "description": "Where the client canceled; null exactly when the request was not canceled.",
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["elapsed_seconds"],
+          "properties": {
+            "elapsed_seconds": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Seconds after send_ts at which the client closed the connection."
+            },
+            "output_tokens_at_cancel": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Output tokens received when the cancel was issued."
+            }
+          }
+        }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "const": "ok" } }, "required": ["status"] },
+      "then": {
+        "properties": {
+          "error_class": { "const": null },
+          "shed": { "const": false }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "status": { "const": "error" } }, "required": ["status"] },
+      "then": { "properties": { "error_class": { "type": "string" } } }
+    },
+    {
+      "if": { "properties": { "status": { "const": "canceled" } }, "required": ["status"] },
+      "then": {
+        "properties": {
+          "error_class": { "const": "canceled" },
+          "cancellation_point": { "type": "object" }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "status": { "const": "shed" } }, "required": ["status"] },
+      "then": {
+        "properties": {
+          "shed": { "const": true },
+          "error_class": { "enum": ["rate_limited", "overloaded"] },
+          "ttft_seconds": { "const": null },
+          "itl": { "const": null }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "scenario_id": "fs-03",
+  "contract_item": 3,
+  "name": "Slow backend",
+  "injection": {
+    "description": "Degrade one backend so its TTFT and inter-token latency rise well above baseline (network latency injection or CPU/GPU throttling) while it keeps accepting requests.",
+    "target": "network",
+    "method": "latency-injection",
+    "parameters": { "added_delay_ms": 2000, "scope": "one-backend" }
+  },
+  "expected_gateway_semantics": [
+    "Pressure-aware routing shifts new requests away from the slow backend within a bounded interval (its in-flight/queue pressure is visible to routing).",
+    "Requests that exceed upstream deadlines fail typed (error.type=upstream_timeout) — never as untyped/generic internal errors.",
+    "The slow backend is not marked dead while it still completes requests; it receives proportionally less traffic."
+  ],
+  "expected_client_visible_behavior": [
+    "Transient latency elevation for requests already routed to the slow backend, then recovery as routing shifts.",
+    "Deadline-exceeded requests surface a typed upstream_timeout error envelope with the request ID."
+  ],
+  "metrics_that_must_move": [
+    { "source": "gateway", "metric": "inference_ttft_seconds", "expectation": "p99 rises for the injected backend label, then the injected backend's share of new requests falls" },
+    { "source": "gateway", "metric": "inference_requests_total", "expectation": "error_class=upstream_timeout increases for requests that hit the upstream deadline" },
+    { "source": "engine", "metric": "queue_waiting_requests", "expectation": "rises on the slow backend (canonical key, resolved via the backend-capability name_mapping)" }
+  ],
+  "abort_condition": "Abort the injection if aggregate goodput across the non-injected backends drops more than 20% below baseline for 120s (routing failed to shift), or if untyped 5xx errors appear."
+}

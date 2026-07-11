@@ -1,0 +1,54 @@
+{
+  "run_id": "run-2026-07-10-chatshort-vllm-a10g-001",
+  "target_topology": "via-gateway",
+  "workload_ref": {
+    "name": "chat-short",
+    "version": "0.1.0",
+    "seed": 20260710
+  },
+  "engine": {
+    "name": "vllm",
+    "version": "0.9.1",
+    "commit": "1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b",
+    "flags": {
+      "max_num_seqs": 256,
+      "max_num_batched_tokens": 8192,
+      "gpu_memory_utilization": 0.9,
+      "prefix_caching": true,
+      "chunked_prefill": true,
+      "quantization": null,
+      "kv_cache_dtype": "auto",
+      "speculative_decoding": null
+    }
+  },
+  "model": {
+    "checkpoint": "meta-llama/Llama-3.1-8B-Instruct",
+    "revision": "0e9e39f249a16976918f6564b8830bc894c89659",
+    "tokenizer": "meta-llama/Llama-3.1-8B-Instruct"
+  },
+  "hardware": {
+    "gpu_model": "NVIDIA A10G",
+    "gpu_count": 1,
+    "vram_gb": 24,
+    "driver_version": "560.35.03",
+    "cuda_version": "12.6",
+    "instance_type": "g5.xlarge"
+  },
+  "gateway": {
+    "version": "0.3.0",
+    "config_version": "cfg-2026-07-10-01"
+  },
+  "client": {
+    "location": "same-zone",
+    "rtt_ms": 0.4
+  },
+  "warm_up": {
+    "policy": "discard-duration",
+    "value": 60
+  },
+  "repetitions": 5,
+  "hypothesis": "At 8 rps chat-short traffic, routing via the gateway adds < 10 ms p95 to client-side TTFT versus engine-direct, with identical engine configuration as the single declared variable held constant.",
+  "started_at": "2026-07-10T09:00:00Z",
+  "contracts_bundle_version": "v0.1.0",
+  "notes": "Example fixture; all values illustrative, no measurement claims."
+}

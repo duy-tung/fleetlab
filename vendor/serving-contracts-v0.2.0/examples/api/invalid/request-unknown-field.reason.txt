@@ -1,0 +1,1 @@
+Arbitrary unknown top-level field. MUST be rejected 400 invalid_request/unsupported_field (param: totally_unknown_field) — the rejection-not-ignore rule applies to ANY unknown field, not just known OpenAI fields.

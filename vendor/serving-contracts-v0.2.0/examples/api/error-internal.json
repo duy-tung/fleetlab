@@ -1,0 +1,9 @@
+{
+  "error": {
+    "message": "Internal error. Reference this request ID when reporting.",
+    "type": "internal",
+    "code": null,
+    "param": null,
+    "request_id": "req_fixture_0500"
+  }
+}

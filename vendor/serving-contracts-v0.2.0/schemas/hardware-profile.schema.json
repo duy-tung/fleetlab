@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/duy-tung/serving-contracts/schemas/hardware-profile.schema.json",
+  "title": "Hardware profile (fleet schema; Contract 3/7 input)",
+  "description": "Describes one hardware configuration for capacity modeling (fleetlab) and benchmark cross-reference. PROVENANCE IS MANDATORY AND STRUCTURAL: every quantitative fact is a provenanced value object ({value, provenance}) — a bare number is not schema-valid, so fabricated defaults are not expressible. Identity fields (ids, names, model strings) are identities, not measurements, and carry no provenance. Hardware specs and prices are volatile ecosystem facts (as of 2026-07 — re-verify at use time).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["profile_id", "gpu"],
+  "properties": {
+    "profile_id": { "type": "string", "minLength": 1 },
+    "version": { "type": "string", "description": "Profile version; bump when any value changes (profiles are pinned by consumers)." },
+    "description": { "type": "string" },
+    "gpu": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["model", "count_per_node", "vram_gb"],
+      "properties": {
+        "model": { "type": "string", "minLength": 1, "description": "GPU model identity (e.g. NVIDIA A10G)." },
+        "count_per_node": { "type": "integer", "minimum": 1 },
+        "vram_gb": { "$ref": "#/$defs/provenancedNumber" },
+        "memory_bandwidth_gbps": { "$ref": "#/$defs/provenancedNumber" },
+        "fp16_tflops": { "$ref": "#/$defs/provenancedNumber" }
+      }
+    },
+    "node": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Host/instance the GPUs sit in.",
+      "properties": {
+        "instance_type": { "type": "string", "description": "Cloud instance type identity (e.g. g5.xlarge) or bare-metal SKU." },
+        "cloud": { "type": "string" },
+        "region": { "type": "string" },
+        "vcpus": { "$ref": "#/$defs/provenancedInteger" },
+        "ram_gb": { "$ref": "#/$defs/provenancedNumber" }
+      }
+    },
+    "interconnect": { "type": "string", "description": "Multi-GPU interconnect identity (e.g. PCIe Gen4, NVLink); relevant only when count_per_node > 1." },
+    "notes": { "type": "string" }
+  },
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["basis", "as_of"],
+      "description": "MANDATORY provenance: how this value was established and when. basis=measured: from an identified measurement (source = benchmark result_id or measurement artifact). basis=source-reported: from an identified external source (vendor spec, pricing page, paper). basis=assumed: an explicit assumption — never a silent default; state the reasoning in notes.",
+      "properties": {
+        "basis": { "enum": ["measured", "source-reported", "assumed"] },
+        "as_of": { "type": "string", "format": "date", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+        "source": { "type": "string", "minLength": 1, "description": "REQUIRED for measured and source-reported values: what produced or reported the value." },
+        "notes": { "type": "string" }
+      },
+      "if": { "properties": { "basis": { "enum": ["measured", "source-reported"] } }, "required": ["basis"] },
+      "then": { "required": ["source"] }
+    },
+    "provenancedNumber": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "provenance"],
+      "properties": {
+        "value": { "type": "number" },
+        "provenance": { "$ref": "#/$defs/provenance" }
+      }
+    },
+    "provenancedInteger": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "provenance"],
+      "properties": {
+        "value": { "type": "integer" },
+        "provenance": { "$ref": "#/$defs/provenance" }
+      }
+    }
+  }
+}

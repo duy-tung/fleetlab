@@ -1,0 +1,28 @@
+{
+  "scenario_id": "fs-01",
+  "contract_item": 1,
+  "name": "Backend killed before first token",
+  "injection": {
+    "description": "Kill one engine backend process/pod (SIGKILL, no drain) while it holds admitted requests that have not yet produced a first token.",
+    "target": "backend",
+    "method": "process-kill",
+    "parameters": { "signal": "SIGKILL", "phase": "pre-first-token" }
+  },
+  "expected_gateway_semantics": [
+    "Requests on the killed backend that have not received a first upstream body byte are retried pre-first-token against another healthy backend, within the retry budget.",
+    "If the retry budget is exhausted or no healthy backend exists, the request fails with a typed error envelope (error.type=upstream_error, 5xx) carrying the request ID.",
+    "No retry ever occurs after the first token (post-first-token retry would duplicate sampled output and double-bill — Contract 1)."
+  ],
+  "expected_client_visible_behavior": [
+    "Either a successful response/stream (transparent pre-first-token retry; TTFT elevated) or a typed upstream_error envelope — never partial output, never duplicated output."
+  ],
+  "metrics_that_must_move": [
+    { "source": "gateway", "metric": "inference_retries_total", "expectation": "increases with stage=pre-first-token for the retried requests" },
+    { "source": "gateway", "metric": "inference_backend_healthy", "expectation": "goes to 0 for the killed backend within the health-check interval" },
+    { "source": "gateway", "metric": "inference_requests_total", "expectation": "error_class=upstream_error increases only for requests that exhausted the retry budget" }
+  ],
+  "metrics_that_must_not_move": [
+    { "source": "gateway", "metric": "inference_retries_total", "expectation": "no stage value other than pre-first-token appears at any point" }
+  ],
+  "abort_condition": "Abort the injection if any client observes duplicated output tokens, or if the error rate of requests routed to non-injected backends exceeds 5% for 60s."
+}

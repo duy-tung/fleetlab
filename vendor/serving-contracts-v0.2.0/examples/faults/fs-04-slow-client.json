@@ -1,0 +1,29 @@
+{
+  "scenario_id": "fs-04",
+  "contract_item": 4,
+  "name": "Slow client",
+  "injection": {
+    "description": "A fraction of streaming clients consume the SSE response at a deliberately slow read rate (workload slow_client profile), far below token production rate.",
+    "target": "client",
+    "method": "load-profile",
+    "parameters": { "workload": "slow-client", "read_rate_bytes_per_second": 128, "fraction": 0.1 }
+  },
+  "expected_gateway_semantics": [
+    "Per-stream write buffering stays bounded; a write deadline is enforced per stream.",
+    "When the bound/deadline is exceeded, the gateway closes the stream and propagates cancellation upstream (HTTP body close) so the engine aborts generation and releases the request's resources — release is observable (Contract 4 release_observability).",
+    "Slow consumers never cause head-of-line blocking or memory growth affecting other streams."
+  ],
+  "expected_client_visible_behavior": [
+    "Slow clients see their stream closed after the write deadline; tokens delivered before the close are retained and billable (Contract 1 cancellation billing rule).",
+    "Normal-speed clients are unaffected: their TTFT/ITL stay at baseline."
+  ],
+  "metrics_that_must_move": [
+    { "source": "gateway", "metric": "inference_requests_in_flight", "expectation": "returns to baseline after the write-deadline closes — engine-side release is confirmed, not assumed" },
+    { "source": "engine", "metric": "running_requests", "expectation": "decreases when the gateway aborts the slow streams (canonical key via name_mapping)" },
+    { "source": "gateway", "metric": "inference_e2e_duration_seconds", "expectation": "slow streams terminate at the write deadline instead of growing unbounded" }
+  ],
+  "metrics_that_must_not_move": [
+    { "source": "client", "metric": "client_inference_ttft_seconds", "expectation": "p95 for the normal-speed client population stays within 10% of baseline" }
+  ],
+  "abort_condition": "Abort the injection if gateway memory grows monotonically with slow-client count (unbounded buffering), or if normal-speed clients' TTFT p95 degrades more than 10% from baseline."
+}

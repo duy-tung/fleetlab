@@ -1,0 +1,9 @@
+{
+  "error": {
+    "message": "Server overloaded; the request was shed before admission. Retry after the interval given in Retry-After.",
+    "type": "overloaded",
+    "code": null,
+    "param": null,
+    "request_id": "req_fixture_0503"
+  }
+}

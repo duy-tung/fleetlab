@@ -1,0 +1,4 @@
+Violates benchmark-result.schema.json required list: the `validity` block
+(warm-up handling, run count, threats to validity, unexplained anomalies) is
+absent. A result that does not disclose its validity conditions is not a valid
+result.

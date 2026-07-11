@@ -1,0 +1,70 @@
+{
+  "engine": {
+    "name": "mock",
+    "version": "0.1.0",
+    "commit": null
+  },
+  "streaming": {
+    "supported": true,
+    "protocol": "sse"
+  },
+  "usage_in_stream": {
+    "supported": true,
+    "mechanism": "usage object in the final chunk when stream_options.include_usage=true"
+  },
+  "cancellation": {
+    "mechanism": "http-connection-close",
+    "propagation_note": "Mock aborts token emission on request-context cancellation; release is immediate.",
+    "release_observability": {
+      "observable": true,
+      "signals": [
+        "running_requests",
+        "log:request aborted"
+      ]
+    }
+  },
+  "metrics": {
+    "endpoint": "/metrics",
+    "format": "prometheus",
+    "name_mapping": {
+      "as_of": "2026-07-10",
+      "verified_against_version": "0.1.0",
+      "entries": {
+        "queue_waiting_requests": "mock_queue_waiting_requests",
+        "running_requests": "mock_running_requests",
+        "kv_cache_usage_ratio": null,
+        "prefix_cache_hit_rate": null,
+        "generation_tokens_total": "mock_generation_tokens_total",
+        "prompt_tokens_total": "mock_prompt_tokens_total"
+      }
+    }
+  },
+  "tokenizer": {
+    "id": "mock-whitespace-v1"
+  },
+  "context_limit_tokens": 32768,
+  "concurrency_hints": {
+    "max_concurrent_requests": 512,
+    "max_batched_tokens": null
+  },
+  "prefix_cache": {
+    "supported": false,
+    "observability": {
+      "observable": false,
+      "signals": []
+    }
+  },
+  "quantization": {
+    "active": null,
+    "methods_supported": []
+  },
+  "priority": {
+    "supported": false
+  },
+  "provenance": {
+    "as_of": "2026-07-10",
+    "method": "declared",
+    "notes": "Mock backend is owned by the program; its capability surface is fixed by construction. Example fixture."
+  },
+  "extra_undeclared_field": "should be rejected"
+}

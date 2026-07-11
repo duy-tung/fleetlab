@@ -1,0 +1,1 @@
+max_tokens and max_completion_tokens are mutually exclusive; setting both MUST be rejected 400 invalid_request/conflicting_parameters. Violates the schema 'not' constraint.

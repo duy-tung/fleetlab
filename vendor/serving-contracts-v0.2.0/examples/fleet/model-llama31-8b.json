@@ -1,0 +1,52 @@
+{
+  "profile_id": "model-llama31-8b",
+  "version": "0.1.0",
+  "description": "Llama 3.1 8B Instruct, unquantized, as served in the baseline benchmarks. Example fixture (as of 2026-07 — re-verify at use time).",
+  "checkpoint": {
+    "id": "meta-llama/Llama-3.1-8B-Instruct",
+    "revision": "0e9e39f249a16976918f6564b8830bc894c89659"
+  },
+  "tokenizer": {
+    "id": "meta-llama/Llama-3.1-8B-Instruct",
+    "revision": "0e9e39f249a16976918f6564b8830bc894c89659"
+  },
+  "parameters_billion": {
+    "value": 8.03,
+    "provenance": {
+      "basis": "source-reported",
+      "as_of": "2026-07-10",
+      "source": "Meta Llama 3.1 model card"
+    }
+  },
+  "weights_size_gb": {
+    "value": 16.1,
+    "provenance": {
+      "basis": "source-reported",
+      "as_of": "2026-07-10",
+      "source": "checkpoint safetensors total size at the pinned revision (bf16)",
+      "notes": "for the unquantized bf16 checkpoint; a quantized variant is a different profile"
+    }
+  },
+  "context_limit_tokens": {
+    "value": 131072,
+    "provenance": {
+      "basis": "source-reported",
+      "as_of": "2026-07-10",
+      "source": "config.json max_position_embeddings at the pinned revision"
+    }
+  },
+  "kv_cache_bytes_per_token": {
+    "value": 131072,
+    "provenance": {
+      "basis": "source-reported",
+      "as_of": "2026-07-10",
+      "source": "computed from the pinned config.json architecture: 2 (K+V) x 32 layers x 8 KV heads x 128 head_dim x 2 bytes (fp16 KV dtype)",
+      "notes": "recompute if kv_cache_dtype changes; numeric equality with context_limit_tokens is coincidence"
+    }
+  },
+  "quantization": {
+    "active": null,
+    "kv_cache_dtype": "auto"
+  },
+  "notes": "Matches the model block of the benchmark run-manifest example and the vLLM capability descriptor's tokenizer pin."
+}

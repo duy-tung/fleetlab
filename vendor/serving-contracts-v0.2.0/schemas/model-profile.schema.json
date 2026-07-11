@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/duy-tung/serving-contracts/schemas/model-profile.schema.json",
+  "title": "Model profile (fleet schema; Contract 3/7 input)",
+  "description": "Describes one served model for capacity modeling (fleetlab). PROVENANCE IS MANDATORY AND STRUCTURAL: every quantitative fact is a provenanced value object ({value, provenance}) — a bare number is not schema-valid, so fabricated defaults are not expressible. Identity fields (profile id, checkpoint id, revision, tokenizer id) are identities, not measurements, and carry no provenance; the checkpoint REVISION pin is mandatory because token counts and performance are comparable only under identical model identity (benchmark comparability rule).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["profile_id", "checkpoint", "tokenizer", "parameters_billion", "weights_size_gb", "context_limit_tokens"],
+  "properties": {
+    "profile_id": { "type": "string", "minLength": 1 },
+    "version": { "type": "string", "description": "Profile version; bump when any value changes (profiles are pinned by consumers)." },
+    "description": { "type": "string" },
+    "checkpoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "revision"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "description": "Checkpoint identity (e.g. HF repo id)." },
+        "revision": { "type": "string", "minLength": 1, "description": "Exact revision pin (commit hash); mandatory for comparability." }
+      }
+    },
+    "tokenizer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "revision": { "type": "string" }
+      }
+    },
+    "parameters_billion": { "$ref": "#/$defs/provenancedNumber" },
+    "weights_size_gb": {
+      "$ref": "#/$defs/provenancedNumber",
+      "description": "On-disk/in-VRAM weight size for the stated quantization."
+    },
+    "context_limit_tokens": { "$ref": "#/$defs/provenancedInteger" },
+    "kv_cache_bytes_per_token": {
+      "$ref": "#/$defs/provenancedNumber",
+      "description": "KV-cache footprint per token for the stated KV dtype; drives concurrency-vs-VRAM capacity modeling."
+    },
+    "quantization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["active"],
+      "properties": {
+        "active": { "type": ["string", "null"], "description": "Quantization this profile's values were established under (null = none). A different quantization is a different profile." },
+        "kv_cache_dtype": { "type": "string" }
+      }
+    },
+    "notes": { "type": "string" }
+  },
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["basis", "as_of"],
+      "description": "MANDATORY provenance: how this value was established and when. basis=measured: from an identified measurement (source = benchmark result_id or measurement artifact). basis=source-reported: from an identified external source (model card, config.json, paper). basis=assumed: an explicit assumption — never a silent default; state the reasoning in notes.",
+      "properties": {
+        "basis": { "enum": ["measured", "source-reported", "assumed"] },
+        "as_of": { "type": "string", "format": "date", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" },
+        "source": { "type": "string", "minLength": 1, "description": "REQUIRED for measured and source-reported values: what produced or reported the value." },
+        "notes": { "type": "string" }
+      },
+      "if": { "properties": { "basis": { "enum": ["measured", "source-reported"] } }, "required": ["basis"] },
+      "then": { "required": ["source"] }
+    },
+    "provenancedNumber": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "provenance"],
+      "properties": {
+        "value": { "type": "number" },
+        "provenance": { "$ref": "#/$defs/provenance" }
+      }
+    },
+    "provenancedInteger": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "provenance"],
+      "properties": {
+        "value": { "type": "integer" },
+        "provenance": { "$ref": "#/$defs/provenance" }
+      }
+    }
+  }
+}

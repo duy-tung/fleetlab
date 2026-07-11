@@ -1,0 +1,35 @@
+{
+  "name": "rag-long-in",
+  "version": "0.1.0",
+  "seed": 20260710,
+  "description": "Retrieval-augmented traffic: long stuffed-context prompts, short grounded answers. Prefill-heavy. NON-NORMATIVE example fixture; canonical suite owned by inferbench.",
+  "arrival_process": {
+    "type": "open-loop-poisson",
+    "rate_rps": 2
+  },
+  "input_length_distribution": {
+    "type": "uniform",
+    "min": 4000,
+    "max": 12000
+  },
+  "output_length_distribution": {
+    "type": "normal",
+    "mean": 250,
+    "stddev": 100,
+    "min": 32,
+    "max": 768
+  },
+  "prefix_sharing": {
+    "ratio": 0
+  },
+  "cancellation": {
+    "rate": 0
+  },
+  "slow_client": {
+    "fraction": 0
+  },
+  "stop": {
+    "duration_seconds": 900
+  },
+  "tags": ["rag", "prefill-heavy"]
+}

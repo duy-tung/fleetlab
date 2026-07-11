@@ -1,0 +1,4 @@
+Violates workload.schema.json arrival_process closed-loop branch: the mandatory
+disclosure flag `closed_loop_disclosed: true` is absent. Closed-loop arrival
+hides queueing delay under saturation; a closed-loop workload that does not
+disclose its loop mode is not a valid workload definition.

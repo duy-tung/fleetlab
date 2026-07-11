@@ -1,0 +1,9 @@
+{
+  "error": {
+    "message": "Upstream backend failed before the request completed.",
+    "type": "upstream_error",
+    "code": null,
+    "param": null,
+    "request_id": "req_fixture_0502"
+  }
+}

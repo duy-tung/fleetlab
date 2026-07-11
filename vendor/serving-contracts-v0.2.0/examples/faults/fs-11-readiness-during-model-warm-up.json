@@ -1,0 +1,28 @@
+{
+  "scenario_id": "fs-11",
+  "contract_item": 11,
+  "name": "Readiness during model warm-up",
+  "injection": {
+    "description": "Start a fresh engine replica from cold (model weights load + warm-up) in a pool under traffic and observe the rollout until it serves.",
+    "target": "orchestration",
+    "method": "replica-start",
+    "parameters": { "start_state": "cold", "replicas": 1 }
+  },
+  "expected_gateway_semantics": [
+    "The replica's readiness is false throughout model load/warm-up (deployment-contract warm-up-aware readiness); the gateway routes no traffic to it before its warm signal holds.",
+    "The startup-probe budget covers worst-case model load, so liveness never kills a loading replica — no restart loops.",
+    "Capacity ramps only when the replica reports warm; until then the pool serves on existing replicas."
+  ],
+  "expected_client_visible_behavior": [
+    "No client-visible errors or latency degradation attributable to the cold replica at any point in its warm-up."
+  ],
+  "metrics_that_must_move": [
+    { "source": "gateway", "metric": "inference_backend_healthy", "expectation": "stays 0 for the new backend during load/warm-up, transitions to 1 exactly once when warm" },
+    { "source": "engine", "metric": "running_requests", "expectation": "0 on the new replica until readiness true, then rises as traffic arrives (canonical key via name_mapping)" }
+  ],
+  "metrics_that_must_not_move": [
+    { "source": "platform", "metric": "kube_pod_container_status_restarts_total", "expectation": "stays 0 for the warming replica — the probe budget prevents liveness-kill loops" },
+    { "source": "gateway", "metric": "inference_requests_total", "expectation": "no error_class=upstream_error increase attributable to traffic reaching the cold replica" }
+  ],
+  "abort_condition": "Abort the injection if the warming replica restarts even once, or if any request is routed to it before its readiness is true."
+}

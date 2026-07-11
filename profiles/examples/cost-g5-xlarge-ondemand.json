@@ -1,0 +1,36 @@
+{
+  "profile_id": "cost-g5-xlarge-ondemand",
+  "version": "0.1.0",
+  "currency": "USD",
+  "description": "On-demand pricing for the baseline benchmark hardware. This is the cost profile the benchmark-result example's cost block references (cost-g5-xlarge-ondemand @ 0.1.0). Prices are volatile (as of 2026-07 — re-verify at use time).",
+  "rates": [
+    {
+      "hardware_profile_ref": { "id": "hardware-a10g-g5-xlarge", "version": "0.1.0" },
+      "pricing_model": "on-demand",
+      "region": "us-east-1",
+      "usd_per_hour": {
+        "value": 1.006,
+        "provenance": {
+          "basis": "source-reported",
+          "as_of": "2026-07-10",
+          "source": "AWS EC2 on-demand pricing page, g5.xlarge, us-east-1",
+          "notes": "as of 2026-07 — re-verify at use time"
+        }
+      }
+    },
+    {
+      "hardware_profile_ref": { "id": "hardware-a10g-g5-xlarge", "version": "0.1.0" },
+      "pricing_model": "spot",
+      "region": "us-east-1",
+      "usd_per_hour": {
+        "value": 0.42,
+        "provenance": {
+          "basis": "assumed",
+          "as_of": "2026-07-10",
+          "notes": "explicit planning assumption (~40% of on-demand, typical G5 spot discount band); NOT a quoted price — spot prices float. Re-price from the spot feed before any decision uses this number."
+        }
+      },
+      "notes": "spot preemption risk is not priced in; capacity recommendations using this rate must carry the preemption assumption explicitly"
+    }
+  ]
+}

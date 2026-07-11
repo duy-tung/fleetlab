@@ -1,0 +1,11 @@
+{
+  "model": "mock-8b",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Say hello."
+    }
+  ],
+  "presence_penalty": 0.5,
+  "frequency_penalty": 0.3
+}
